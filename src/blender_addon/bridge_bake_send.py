@@ -30,6 +30,7 @@ import bridge_sync as sync
 # smoke test read it too: a typo in a scattered string would give a false
 # hasattr and a panel row that disappears, with no error at all.
 CATEGORY_PROPERTY = "bilocus_bake_category"
+TOGETHER_PROPERTY = "bilocus_bake_together"
 ACCEPT_OPEN_PROPERTY = "bilocus_bake_accept_open"
 
 NO_RESULT_MESSAGE = "no bake in this session"
@@ -64,12 +65,25 @@ def register_properties():
                     "Revit becomes a shell with no volume. A non-manifold "
                     "mesh is still rejected. Ignored by DirectShape Bake",
         default=False))
+    # On the SCENE: it is a way of baking, not a property of an object.
+    setattr(bpy.types.Scene, TOGETHER_PROPERTY, bpy.props.BoolProperty(
+        name="Bake together",
+        description="Family Bake: one family with all the selected objects, "
+                    "named after the active object and placed at its origin. "
+                    "Off: one family per object",
+        default=False))
 
 
 def unregister_properties():
     for name in (ACCEPT_OPEN_PROPERTY, CATEGORY_PROPERTY):
         if hasattr(bpy.types.Object, name):
             delattr(bpy.types.Object, name)
+    if hasattr(bpy.types.Scene, TOGETHER_PROPERTY):
+        delattr(bpy.types.Scene, TOGETHER_PROPERTY)
+
+
+def together_of(scene):
+    return bool(getattr(scene, TOGETHER_PROPERTY, False))
 
 
 def category_of(obj):
@@ -213,13 +227,16 @@ def describe_no_remove_targets(context=None):
 
 # --- bake ---------------------------------------------------------------------
 
-def bake_selected(context=None, target="directshape"):
+def bake_selected(context=None, target="directshape", together=False):
     """Sends bake_begin, one bake_mesh per object, bake_end.
 
     target is the bake mode, "directshape" or "family" (bake.BAKE_TARGETS).
     The path is the same in both modes; family only changes the object
     limit and skips ahead of time the categories that cannot become a
     family.
+
+    together (family only): one family with all the objects, named after
+    and placed at the ACTIVE object, which must be among them.
 
     Returns (level, message) with level in 'INFO', 'WARNING', 'ERROR': the
     panel operator passes them as-is to self.report.
@@ -328,9 +345,23 @@ def bake_selected(context=None, target="directshape"):
     if not announced:
         return 'ERROR', "nothing to bake - SKIPPED: {}".format("; ".join(skipped[:3]))
 
+    host = None
+    if family and together and len(announced) > 1:
+        # The active object names the family, places it and identifies it
+        # on the next bake: it must be one of the objects going out.
+        active = getattr(context, "active_object", None)
+        for obj, obj_id in announced:
+            if active is not None and obj.as_pointer() == active.as_pointer():
+                host = obj_id
+                break
+        if host is None:
+            return 'ERROR', ("Bake together: the active object must be one of the "
+                             "selected objects in {} (Ctrl+click it to make it "
+                             "active)".format(coll.COLLECTION_NAME))
+
     try:
         begin = bake.build_bake_begin_header(
-            [obj_id for _obj, obj_id in announced], target)
+            [obj_id for _obj, obj_id in announced], target, host)
     except Exception as error:
         # rejected before producing any bytes: the connection is intact
         return 'ERROR', "bake cannot be sent: {}".format(error)
@@ -396,7 +427,7 @@ def bake_selected(context=None, target="directshape"):
             # the directshape stays as it was in Phase B; the family
             # declares itself, because the wait for a family bake is much
             # longer
-            message = "family bake: {}".format(message)
+            message = "family bake{}: {}".format(" together" if host else "", message)
     if notes:
         message = "{} - {}".format(message, " - ".join(notes))
     return _record(level, message)

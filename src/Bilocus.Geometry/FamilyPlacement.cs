@@ -129,6 +129,43 @@ namespace Bilocus.Geometry
         // angle 0 the same way an X axis pointing east would have. Y
         // degenerate too: angle 0, and the whole linear part ends up in the
         // family.
+        // Bake together: the points of ANOTHER object, in the family system
+        // of this placement (the active object's). The member's own matrix
+        // brings its local points into the world, then the family's origin
+        // and plan rotation are taken away. For the placement's own matrix
+        // it gives the same result as ToFamilyPoints.
+        public double[] ToFamilyPointsOf(float[] memberMatrix16, float[] localPositions)
+        {
+            if (memberMatrix16 == null) throw new ArgumentNullException("memberMatrix16");
+            if (memberMatrix16.Length != 16)
+            {
+                throw new ArgumentException("memberMatrix16 must have 16 elements, has " + memberMatrix16.Length);
+            }
+            if (localPositions == null) throw new ArgumentNullException("localPositions");
+            if (localPositions.Length % 3 != 0)
+            {
+                throw new ArgumentException(
+                    "localPositions must have a length that is a multiple of 3, has " + localPositions.Length);
+            }
+
+            double[] family = new double[localPositions.Length];
+            for (int i = 0; i < localPositions.Length; i += 3)
+            {
+                double x = localPositions[i];
+                double y = localPositions[i + 1];
+                double z = localPositions[i + 2];
+
+                double wx = memberMatrix16[0] * x + memberMatrix16[1] * y + memberMatrix16[2] * z + memberMatrix16[3] - _origin[0];
+                double wy = memberMatrix16[4] * x + memberMatrix16[5] * y + memberMatrix16[6] * z + memberMatrix16[7] - _origin[1];
+                double wz = memberMatrix16[8] * x + memberMatrix16[9] * y + memberMatrix16[10] * z + memberMatrix16[11] - _origin[2];
+
+                family[i] = _cos * wx - _sin * wy;
+                family[i + 1] = _sin * wx + _cos * wy;
+                family[i + 2] = wz;
+            }
+            return family;
+        }
+
         private double PlanAngle()
         {
             // Column 0 of the linear part: the image of the X axis.

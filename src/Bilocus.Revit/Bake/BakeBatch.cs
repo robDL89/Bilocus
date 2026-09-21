@@ -59,6 +59,16 @@ namespace Bilocus.Revit.Bake
         // ArgumentException. The target is checked BEFORE the ids, because it
         // decides the cap used to count them.
         public BakeBatch(IList<string> announcedIds, string target)
+            : this(announcedIds, target, null)
+        {
+        }
+
+        // host: null for a normal bake. Not null = "Bake together": one
+        // family with every announced object inside, named after the host
+        // (the active object in Blender), placed at the host's origin and
+        // identified by the host's obj_id. Only for target family, and the
+        // host must be one of the announced ids.
+        public BakeBatch(IList<string> announcedIds, string target, string host)
         {
             string parsed;
             if (!BakeTarget.TryParse(target, out parsed))
@@ -71,7 +81,27 @@ namespace Bilocus.Revit.Bake
             Target = parsed;
             _announced = NormalizeObjectIds(announcedIds, MaxObjectsFor(parsed));
             _announcedSet = new HashSet<string>(_announced, StringComparer.Ordinal);
+
+            if (host != null)
+            {
+                if (parsed != BakeTarget.Family)
+                {
+                    throw new ArgumentException("host (bake together) is only allowed with target family");
+                }
+                string normalized = ProxyNaming.NormalizeObjectId(host);
+                if (!_announcedSet.Contains(normalized))
+                {
+                    throw new ArgumentException(string.Format(
+                        "host '{0}' is not among the announced obj_ids", normalized));
+                }
+                Host = normalized;
+            }
         }
+
+        // The active object of a "Bake together", or null.
+        public string Host { get; private set; }
+
+        public bool Together { get { return Host != null; } }
 
         // BakeTarget.DirectShape or BakeTarget.Family. Decides who executes
         // the batch: BakeBuilder or FamilyBaker.

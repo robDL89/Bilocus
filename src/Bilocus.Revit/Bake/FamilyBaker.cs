@@ -404,19 +404,40 @@ namespace Bilocus.Revit.Bake
 
             private void RunObjects()
             {
+                if (_batch.Together)
+                {
+                    // Bake together: ONE family for the whole batch, named
+                    // after and placed at the active object (the host).
+                    BakeMeshRequest host = null;
+                    foreach (BakeMeshRequest request in _batch.Requests)
+                    {
+                        if (request.ObjectId == _batch.Host) { host = request; break; }
+                    }
+                    if (host == null)
+                    {
+                        // The host names, places and identifies the family:
+                        // without it there is nothing to attach the others to.
+                        Result.AddFailure("active object", "the active object did not arrive: nothing baked");
+                        return;
+                    }
+                    BakeUnit(host, _batch.Requests);
+                    return;
+                }
+
+                // Normal bake: every object is a group of one, host of itself.
                 foreach (BakeMeshRequest request in _batch.Requests)
                 {
-                    BakeOne(request);
+                    BakeUnit(request, new List<BakeMeshRequest> { request });
                     if (GroupRefusal != null) { return; }
                 }
             }
 
-            private void BakeOne(BakeMeshRequest request)
+            private void BakeUnit(BakeMeshRequest host, List<BakeMeshRequest> members)
             {
                 try
                 {
-                    string refusal = BakeObject(request);
-                    if (refusal != null) { Result.AddFailure(request.Name, refusal); }
+                    string refusal = BakeFamily(host, members);
+                    if (refusal != null) { Result.AddFailure(host.Name, refusal); }
                 }
                 catch (GroupRefusedException ex)
                 {
@@ -424,101 +445,195 @@ namespace Bilocus.Revit.Bake
                 }
                 catch (Exception ex)
                 {
-                    // Isolated to the single object: open transactions have
+                    // Isolated to the single family: open transactions have
                     // already rolled back (InTransaction), the family
                     // document is already closed (finally), the batch
                     // continues.
-                    Result.AddFailure(request.Name, Describe(ex));
+                    Result.AddFailure(host.Name, Describe(ex));
                 }
             }
 
-            // One object. Returns the failure reason, or null.
-            private string BakeObject(BakeMeshRequest request)
+            // One family: the host and its members (the host is always among
+            // them). Returns the failure reason, or null.
+            //
+            // Identity is the host's obj_id: the family and its instance
+            // carry it. Every FreeFormElement inside carries the obj_id of
+            // the object it comes from. A re-bake with the same host aligns
+            // the family to the members of THIS bake: FreeFormElements are
+            // updated or added, and those of objects no longer in the bake
+            // are removed. A normal bake of the host alone is a group of one,
+            // so it also brings a former "together" family back to one object.
+            private string BakeFamily(BakeMeshRequest host, List<BakeMeshRequest> members)
             {
-                // Category: existence here, admissibility for a family only
-                // when it is set on the family document (Revit is the one
-                // that knows, see SetCategory).
+                // Category: the host's. Existence here, admissibility for a
+                // family only when it is set on the family document (Revit
+                // is the one that knows, see SetCategory).
                 BuiltInCategory builtIn;
-                if (!Enum.TryParse<BuiltInCategory>(request.Category, false, out builtIn))
+                if (!Enum.TryParse<BuiltInCategory>(host.Category, false, out builtIn))
                 {
-                    return "category " + request.Category + " unknown to this version of Revit";
+                    return "category " + host.Category + " unknown to this version of Revit";
                 }
 
                 Category category = Category.GetCategory(_project, builtIn);
                 if (category == null)
                 {
-                    return "category " + request.Category + " not allowed for a family";
+                    return "category " + host.Category + " not allowed for a family";
                 }
 
-                // Geometry OUTSIDE any transaction and before opening
-                // documents: an object the builder rejects must not cost an
-                // opened-and-closed family document.
-                //
-                // Points in FAMILY coordinates: the linear part of the
-                // matrix minus the in-plane rotation, which goes to the
-                // instance. Planarity is measured here as in the world,
-                // because a rotation around Z does not change a polygon's
-                // deviation.
-                FamilyPlacement placement = FamilyPlacement.Decompose(request.Matrix);
-                double[] points = placement.ToFamilyPoints(request.Mesh.Positions);
-                BakeFaceSet faces = BakeFaceSet.Build(points, request.Mesh, _tolerance, placement.FlipWinding);
+                // Placement from the host: translation and plan rotation go to
+                // the instance, the rest into the geometry. The other members
+                // are expressed in the same family system, so they keep their
+                // position relative to the host.
+                FamilyPlacement placement = FamilyPlacement.Decompose(host.Matrix);
 
-                using (TessellatedShapeBuilder builder = new TessellatedShapeBuilder())
+                // Builders and results stay alive until the family is
+                // written: the Solids come from there, and FreeFormElement.
+                // Create / UpdateSolidGeometry only copy them when called.
+                List<IDisposable> keepAlive = new List<IDisposable>();
+                try
                 {
-                    int skippedFaces;
-                    string fillRefusal = BakeBuilder.FillBuilder(builder, faces, points, out skippedFaces);
-                    if (fillRefusal != null) { return fillRefusal; }
+                    List<MemberSolid> built = new List<MemberSolid>();
+                    HashSet<string> requested = new HashSet<string>(StringComparer.Ordinal);
+                    List<string> otherCategories = new List<string>();
+                    int facesPlanar = 0;
+                    int facesTriangulated = 0;
+                    int skippedFaces = 0;
+                    bool openShell = false;
 
-                    builder.Build();
-
-                    // Builder and result stay alive until after LoadFamily:
-                    // the Solid comes from there, and FreeFormElement.Create /
-                    // UpdateSolidGeometry only make a copy of it when they
-                    // are called.
-                    using (TessellatedShapeBuilderResult built = builder.GetBuildResult())
+                    foreach (BakeMeshRequest member in members)
                     {
-                        // Decision 6: Solid always, Sheet (open shell) only
-                        // with the checkbox, Mesh/Mixed/Nothing never: they
-                        // do not give a Solid, and without a Solid there is
-                        // no FreeFormElement.
-                        TessellatedShapeBuilderOutcome outcome = built.Outcome;
-                        bool openShell = false;
-                        if (outcome == TessellatedShapeBuilderOutcome.Sheet)
-                        {
-                            if (!request.AcceptOpen) { return OpenMeshRefusal; }
-                            openShell = true;
-                        }
-                        else if (outcome != TessellatedShapeBuilderOutcome.Solid)
-                        {
-                            return NonManifoldRefusal;
-                        }
+                        requested.Add(member.ObjectId);
+                        bool isHost = ReferenceEquals(member, host);
 
-                        Solid solid = FirstSolid(built.GetGeometricalObjects());
-                        if (solid == null)
+                        MemberSolid solid;
+                        string refusal = BuildMemberSolid(member, isHost, placement, keepAlive, out solid);
+                        if (refusal != null)
                         {
-                            return "the builder did not return a solid (outcome " + outcome + ")";
+                            // The host carries the family: without its
+                            // geometry the whole group fails. Another member
+                            // fails alone, and its FreeFormElement from a
+                            // previous bake (if any) stays as it was.
+                            if (isHost) { return refusal; }
+                            Result.AddFailure(member.Name, refusal);
+                            continue;
                         }
 
-                        IList<ElementId> families = BakeElements.Families(_project, request.ObjectId);
-                        if (families.Count > 1)
+                        built.Add(solid);
+                        facesPlanar += solid.FacesPlanar;
+                        facesTriangulated += solid.FacesTriangulated;
+                        skippedFaces += solid.SkippedFaces;
+                        if (solid.OpenShell) { openShell = true; }
+                        if (!isHost && member.Category != host.Category) { otherCategories.Add(member.Name); }
+                    }
+
+                    IList<ElementId> families = BakeElements.Families(_project, host.ObjectId);
+                    if (families.Count > 1)
+                    {
+                        return string.Format(
+                            "{0} families carry the same obj_id: remove the copies or use Remove bake",
+                            families.Count);
+                    }
+
+                    ObjectWrite write = families.Count == 0
+                        ? CreateFamily(host, built, category, placement)
+                        : UpdateFamily(host, built, requested, families[0], category, placement);
+
+                    if (write.Refusal != null) { return write.Refusal; }
+
+                    _tally.Add(write.Created, openShell, facesPlanar, facesTriangulated,
+                        skippedFaces, write.Switched, write.NotMoved);
+                    if (!string.IsNullOrEmpty(write.Note)) { AppendNote(Result, write.Note); }
+                    if (members.Count > 1)
+                    {
+                        string note = string.Format("family {0}: {1} objects baked together",
+                            write.FamilyName, built.Count);
+                        if (write.RemovedMembers > 0)
                         {
-                            return string.Format(
-                                "{0} families carry the same obj_id: remove the copies or use Remove bake",
-                                families.Count);
+                            note = note + string.Format(", {0} no longer selected removed from it", write.RemovedMembers);
                         }
-
-                        ObjectWrite write = families.Count == 0
-                            ? CreateFamily(request, category, solid, placement)
-                            : UpdateFamily(request, families[0], category, solid, placement);
-
-                        if (write.Refusal != null) { return write.Refusal; }
-
-                        _tally.Add(write.Created, openShell, faces.PlanarCount, faces.TriangulatedCount,
-                            skippedFaces, write.Switched, write.NotMoved);
-                        if (!string.IsNullOrEmpty(write.Note)) { AppendNote(Result, write.Note); }
-                        return null;
+                        AppendNote(Result, note);
+                    }
+                    else if (write.RemovedMembers > 0)
+                    {
+                        AppendNote(Result, string.Format("family {0}: {1} objects baked together before removed from it",
+                            write.FamilyName, write.RemovedMembers));
+                    }
+                    if (otherCategories.Count > 0)
+                    {
+                        AppendNote(Result, "category of the active object used for " + string.Join(", ", otherCategories));
+                    }
+                    return null;
+                }
+                finally
+                {
+                    for (int i = keepAlive.Count - 1; i >= 0; i--)
+                    {
+                        try { keepAlive[i].Dispose(); } catch (Exception) { }
                     }
                 }
+            }
+
+            // Geometry OUTSIDE any transaction and before opening documents:
+            // an object the builder rejects must not cost an opened-and-closed
+            // family document. Points in FAMILY coordinates (the host's
+            // system); planarity is measured there as in the world, because
+            // a rotation around Z does not change a polygon's deviation.
+            private string BuildMemberSolid(BakeMeshRequest member, bool isHost, FamilyPlacement placement,
+                List<IDisposable> keepAlive, out MemberSolid solid)
+            {
+                solid = null;
+
+                double[] points = isHost
+                    ? placement.ToFamilyPoints(member.Mesh.Positions)
+                    : placement.ToFamilyPointsOf(member.Matrix, member.Mesh.Positions);
+                bool flip = isHost
+                    ? placement.FlipWinding
+                    : RowMajorMatrix.Determinant3x3(member.Matrix) < 0;
+                BakeFaceSet faces = BakeFaceSet.Build(points, member.Mesh, _tolerance, flip);
+
+                TessellatedShapeBuilder builder = new TessellatedShapeBuilder();
+                keepAlive.Add(builder);
+
+                int skippedFaces;
+                string fillRefusal = BakeBuilder.FillBuilder(builder, faces, points, out skippedFaces);
+                if (fillRefusal != null) { return fillRefusal; }
+
+                builder.Build();
+                TessellatedShapeBuilderResult built = builder.GetBuildResult();
+                keepAlive.Add(built);
+
+                // Decision 6: Solid always, Sheet (open shell) only with the
+                // checkbox, Mesh/Mixed/Nothing never: they do not give a
+                // Solid, and without a Solid there is no FreeFormElement.
+                TessellatedShapeBuilderOutcome outcome = built.Outcome;
+                bool openShell = false;
+                if (outcome == TessellatedShapeBuilderOutcome.Sheet)
+                {
+                    if (!member.AcceptOpen) { return OpenMeshRefusal; }
+                    openShell = true;
+                }
+                else if (outcome != TessellatedShapeBuilderOutcome.Solid)
+                {
+                    return NonManifoldRefusal;
+                }
+
+                Solid first = FirstSolid(built.GetGeometricalObjects());
+                if (first == null)
+                {
+                    return "the builder did not return a solid (outcome " + outcome + ")";
+                }
+
+                solid = new MemberSolid
+                {
+                    ObjectId = member.ObjectId,
+                    Name = member.Name,
+                    Solid = first,
+                    OpenShell = openShell,
+                    FacesPlanar = faces.PlanarCount,
+                    FacesTriangulated = faces.TriangulatedCount,
+                    SkippedFaces = skippedFaces,
+                };
+                return null;
             }
 
             private static Solid FirstSolid(IList<GeometryObject> geometry)
@@ -532,10 +647,11 @@ namespace Bilocus.Revit.Bake
                 return null;
             }
 
-            // No marked family: new document from the template, loaded,
-            // closed; then the instance in the project.
+            // No marked family: new document from the template, one
+            // FreeFormElement per member, loaded, closed; then the instance
+            // in the project.
             private ObjectWrite CreateFamily(
-                BakeMeshRequest request, Category category, Solid solid, FamilyPlacement placement)
+                BakeMeshRequest host, List<MemberSolid> built, Category category, FamilyPlacement placement)
             {
                 // The level before the family document: a project without
                 // levels must not receive a family that cannot be placed.
@@ -546,30 +662,37 @@ namespace Bilocus.Revit.Bake
                 // OverwriteFamilyLoadOptions, a name already taken by a
                 // user's family would mean reloading OVER their family.
                 string familyName = FamilyNaming.MakeUnique(
-                    FamilyNaming.BuildName(request.Name), FamilyNames(ElementId.InvalidElementId));
+                    FamilyNaming.BuildName(host.Name), FamilyNames(ElementId.InvalidElementId));
 
                 Document familyDoc = _project.Application.NewFamilyDocument(_template);
                 if (familyDoc == null)
                 {
                     return ObjectWrite.Refused("Revit did not open a family document from the template " + _template);
                 }
-                _opened.Register(familyDoc, request.Name);
+                _opened.Register(familyDoc, host.Name);
 
                 Family loaded;
                 try
                 {
                     string refusal = InTransaction(familyDoc, FamilyTransactionName, () =>
                     {
-                        string categoryRefusal = SetCategory(familyDoc, category, request.Category);
+                        string categoryRefusal = SetCategory(familyDoc, category, host.Category);
                         if (categoryRefusal != null) { return categoryRefusal; }
 
-                        FreeFormElement freeForm = FreeFormElement.Create(familyDoc, solid);
+                        List<FreeFormElement> created = new List<FreeFormElement>();
+                        foreach (MemberSolid member in built)
+                        {
+                            created.Add(FreeFormElement.Create(familyDoc, member.Solid));
+                        }
                         familyDoc.OwnerFamily.Name = familyName;
 
                         // Last, as in the other builders: an exception above
                         // rolls everything back and no half-marked element
                         // stays.
-                        ProxySchema.Mark(freeForm, request.ObjectId);
+                        for (int i = 0; i < created.Count; i++)
+                        {
+                            ProxySchema.Mark(created[i], built[i].ObjectId);
+                        }
                         return null;
                     });
                     if (refusal != null) { return ObjectWrite.Refused(refusal); }
@@ -578,7 +701,7 @@ namespace Bilocus.Revit.Bake
                 }
                 finally
                 {
-                    CloseFamilyDocument(familyDoc, request.Name);
+                    CloseFamilyDocument(familyDoc, host.Name);
                 }
 
                 if (loaded == null)
@@ -588,35 +711,35 @@ namespace Bilocus.Revit.Bake
                 }
 
                 int switched = 0;
-                string placeRefusal = TryInTransaction(_project, ObjectTransactionPrefix + request.Name, () =>
+                string placeRefusal = TryInTransaction(_project, ObjectTransactionPrefix + host.Name, () =>
                 {
-                    ProxySchema.Mark(loaded, request.ObjectId);
+                    ProxySchema.Mark(loaded, host.ObjectId);
 
-                    string instanceRefusal = PlaceInstance(loaded, level, placement, request.ObjectId);
+                    string instanceRefusal = PlaceInstance(loaded, level, placement, host.ObjectId);
                     if (instanceRefusal != null) { return instanceRefusal; }
 
-                    // Decision 7: the DirectShape of the same object goes
-                    // away in the same transaction as the instance.
-                    switched = DeleteDirectShapes(request.ObjectId);
+                    // Decision 7: what the same objects had in the other
+                    // mode goes away in the same transaction as the instance.
+                    switched = DeleteReplaced(host.ObjectId, built);
                     return null;
                 });
 
                 if (placeRefusal == null)
                 {
-                    return ObjectWrite.Done(true, switched, false, null);
+                    return ObjectWrite.Done(true, switched, false, null, familyName, 0);
                 }
 
                 // The family is loaded but without a mark or an instance: on
                 // the next bake it would not be found and a BL_..._2 would
                 // be born. It is removed, and if that fails it is stated.
-                return ObjectWrite.Refused(placeRefusal + RemoveOrphanFamily(loaded.Id, familyName, request.Name));
+                return ObjectWrite.Refused(placeRefusal + RemoveOrphanFamily(loaded.Id, familyName, host.Name));
             }
 
-            // A marked family: EditFamily, geometry updated on the bridge's
-            // FreeFormElement (the user's voids stay, finding 10),
-            // reloaded; then the instance.
-            private ObjectWrite UpdateFamily(
-                BakeMeshRequest request, ElementId familyId, Category category, Solid solid, FamilyPlacement placement)
+            // A marked family: EditFamily, the bridge's FreeFormElements
+            // aligned to the members (the user's voids and other elements
+            // stay, finding 10), reloaded; then the instance.
+            private ObjectWrite UpdateFamily(BakeMeshRequest host, List<MemberSolid> built,
+                HashSet<string> requested, ElementId familyId, Category category, FamilyPlacement placement)
             {
                 Family family = _project.GetElement(familyId) as Family;
                 if (family == null)
@@ -654,24 +777,43 @@ namespace Bilocus.Revit.Bake
                 {
                     return ObjectWrite.Refused("EditFamily did not return the document of family " + familyName);
                 }
-                _opened.Register(familyDoc, request.Name);
+                _opened.Register(familyDoc, host.Name);
 
                 Family loaded;
+                int removedMembers = 0;
                 try
                 {
                     string refusal = InTransaction(familyDoc, FamilyTransactionName, () =>
                     {
-                        FreeFormElement freeForm;
-                        string findRefusal = FindBridgeFreeForm(familyDoc, request.ObjectId, familyName, out freeForm);
-                        if (findRefusal != null) { return findRefusal; }
+                        foreach (MemberSolid member in built)
+                        {
+                            FreeFormElement freeForm;
+                            string findRefusal = FindBridgeFreeForm(familyDoc, member.ObjectId, familyName, out freeForm);
+                            if (findRefusal != null) { return findRefusal; }
 
-                        freeForm.UpdateSolidGeometry(solid);
+                            if (freeForm == null)
+                            {
+                                // A member new to this family, or one whose
+                                // FreeFormElement was deleted in the editor.
+                                FreeFormElement created = FreeFormElement.Create(familyDoc, member.Solid);
+                                ProxySchema.Mark(created, member.ObjectId);
+                            }
+                            else
+                            {
+                                freeForm.UpdateSolidGeometry(member.Solid);
+                            }
+                        }
+
+                        // Objects no longer in this bake leave the family.
+                        // Only the bridge's FreeFormElements are touched:
+                        // what the user added in the editor has no mark.
+                        removedMembers = RemoveOtherMembers(familyDoc, requested);
 
                         // For a family the category is changed in place: it
                         // is always replaced, never recreated (contract).
                         if (familyDoc.OwnerFamily.FamilyCategoryId != category.Id)
                         {
-                            return SetCategory(familyDoc, category, request.Category);
+                            return SetCategory(familyDoc, category, host.Category);
                         }
                         return null;
                     });
@@ -681,7 +823,7 @@ namespace Bilocus.Revit.Bake
                 }
                 finally
                 {
-                    CloseFamilyDocument(familyDoc, request.Name);
+                    CloseFamilyDocument(familyDoc, host.Name);
                 }
 
                 Family target = loaded != null ? loaded : _project.GetElement(familyId) as Family;
@@ -693,9 +835,9 @@ namespace Bilocus.Revit.Bake
                 int switched = 0;
                 bool notMoved = false;
                 string renameNote = null;
-                string instanceRefusal = TryInTransaction(_project, ObjectTransactionPrefix + request.Name, () =>
+                string instanceRefusal = TryInTransaction(_project, ObjectTransactionPrefix + host.Name, () =>
                 {
-                    List<ElementId> instances = MarkedInstancesOf(target.Id, request.ObjectId);
+                    List<ElementId> instances = MarkedInstancesOf(target.Id, host.ObjectId);
 
                     if (instances.Count == 1)
                     {
@@ -710,7 +852,7 @@ namespace Bilocus.Revit.Bake
                         Level level = PickLevel(placement);
                         if (level == null) { return NoLevelRefusal; }
 
-                        string placeRefusal = PlaceInstance(target, level, placement, request.ObjectId);
+                        string placeRefusal = PlaceInstance(target, level, placement, host.ObjectId);
                         if (placeRefusal != null) { return placeRefusal; }
                     }
                     else
@@ -722,8 +864,8 @@ namespace Bilocus.Revit.Bake
                         notMoved = true;
                     }
 
-                    renameNote = RenameIfFree(target, request.Name);
-                    switched = DeleteDirectShapes(request.ObjectId);
+                    renameNote = RenameIfFree(target, host.Name);
+                    switched = DeleteReplaced(host.ObjectId, built);
                     return null;
                 });
 
@@ -733,7 +875,53 @@ namespace Bilocus.Revit.Bake
                         + " reloaded, but instance not updated: " + instanceRefusal);
                 }
 
-                return ObjectWrite.Done(false, switched, notMoved, renameNote);
+                return ObjectWrite.Done(false, switched, notMoved, renameNote, target.Name, removedMembers);
+            }
+
+            // The bridge's FreeFormElements marked with an obj_id that is not
+            // among the members of this bake. Returns how many were deleted.
+            private static int RemoveOtherMembers(Document familyDoc, HashSet<string> requested)
+            {
+                // Explicit class: the overloads without it search proxy
+                // lines (CurveElement) and would find nothing here.
+                List<ElementId> stale = new List<ElementId>();
+                foreach (ElementId id in ProxySchema.FindMarked(familyDoc, typeof(GenericForm), null))
+                {
+                    string objectId = ProxySchema.ReadObjectId(familyDoc.GetElement(id));
+                    if (objectId == null) { continue; }
+
+                    // Same lenient comparison as every other obj_id lookup.
+                    bool kept = false;
+                    foreach (string wanted in requested)
+                    {
+                        if (ProxyNaming.MatchesObjectId(objectId, wanted)) { kept = true; break; }
+                    }
+                    if (!kept) { stale.Add(id); }
+                }
+                if (stale.Count > 0) { familyDoc.Delete(stale); }
+                return stale.Count;
+            }
+
+            // What the members had before, now replaced by this family:
+            // DirectShapes of every member (decision 7) and the families of
+            // their own of the members other than the host (they now live in
+            // the host's family). Inside an already open project transaction.
+            private int DeleteReplaced(string hostId, List<MemberSolid> built)
+            {
+                List<string> all = new List<string>();
+                List<string> others = new List<string>();
+                foreach (MemberSolid member in built)
+                {
+                    all.Add(member.ObjectId);
+                    if (member.ObjectId != hostId) { others.Add(member.ObjectId); }
+                }
+
+                int count = BakeElements.DeleteAndCount(_project, BakeElements.Collect(_project, all, true, false));
+                if (others.Count > 0)
+                {
+                    count += BakeElements.DeleteAndCount(_project, BakeElements.Collect(_project, others, false, true));
+                }
+                return count;
             }
 
             // Every call that does not allow open project transactions goes
@@ -813,11 +1001,11 @@ namespace Bilocus.Revit.Bake
                     : " - the family " + familyName + " stayed loaded WITHOUT a mark, remove it by hand: " + refusal;
             }
 
-            // The bridge's marked FreeFormElement in the family document. The
-            // search is by GenericForm, the base class, and then filtered:
-            // filtering by class on a subclass is not guaranteed for all of
-            // them, while GenericForm is the class Revit uses to enumerate
-            // shapes.
+            // The bridge's FreeFormElement of one member in the family
+            // document: freeForm null when the member has none yet. The search
+            // is by GenericForm, the base class, and then filtered: filtering
+            // by class on a subclass is not guaranteed for all of them, while
+            // GenericForm is the class Revit uses to enumerate shapes.
             private static string FindBridgeFreeForm(
                 Document familyDoc, string objectId, string familyName, out FreeFormElement freeForm)
             {
@@ -830,10 +1018,6 @@ namespace Bilocus.Revit.Bake
                     if (candidate != null) { found.Add(candidate); }
                 }
 
-                if (found.Count == 0)
-                {
-                    return "bridge FreeFormElement not found in family " + familyName;
-                }
                 if (found.Count > 1)
                 {
                     return string.Format(
@@ -841,7 +1025,7 @@ namespace Bilocus.Revit.Bake
                         found.Count, familyName);
                 }
 
-                freeForm = found[0];
+                if (found.Count == 1) { freeForm = found[0]; }
                 return null;
             }
 
@@ -1029,11 +1213,6 @@ namespace Bilocus.Revit.Bake
                 return names;
             }
 
-            private int DeleteDirectShapes(string objectId)
-            {
-                BakeElements.Sweep sweep = BakeElements.Collect(_project, new[] { objectId }, true, false);
-                return BakeElements.DeleteAndCount(_project, sweep);
-            }
         }
 
         // A transaction on a document (project or family) around body. body
@@ -1098,16 +1277,39 @@ namespace Bilocus.Revit.Bake
             public int Switched;
             public bool NotMoved;
             public string Note;
+            public string FamilyName;
+            public int RemovedMembers;
 
             public static ObjectWrite Refused(string reason)
             {
                 return new ObjectWrite { Refusal = string.IsNullOrEmpty(reason) ? "reason not reported" : reason };
             }
 
-            public static ObjectWrite Done(bool created, int switched, bool notMoved, string note)
+            public static ObjectWrite Done(bool created, int switched, bool notMoved, string note,
+                string familyName, int removedMembers)
             {
-                return new ObjectWrite { Created = created, Switched = switched, NotMoved = notMoved, Note = note };
+                return new ObjectWrite
+                {
+                    Created = created,
+                    Switched = switched,
+                    NotMoved = notMoved,
+                    Note = note,
+                    FamilyName = familyName,
+                    RemovedMembers = removedMembers,
+                };
             }
+        }
+
+        // One member's geometry, ready to become a FreeFormElement.
+        private sealed class MemberSolid
+        {
+            public string ObjectId;
+            public string Name;
+            public Solid Solid;
+            public bool OpenShell;
+            public int FacesPlanar;
+            public int FacesTriangulated;
+            public int SkippedFaces;
         }
 
         // The counts of successful objects. With the group, they only end

@@ -333,7 +333,7 @@ def _check_triangles_per_polygon(face_sizes, tri_faces, face_count):
 # without changing it there does not produce a compile error: it produces a
 # runtime frame error, which only shows up by opening Revit.
 
-def build_bake_begin_header(obj_ids, target="directshape"):
+def build_bake_begin_header(obj_ids, target="directshape", host=None):
     """The bake_begin header: the objects about to arrive and the bake mode,
     "directshape" or "family".
 
@@ -345,7 +345,12 @@ def build_bake_begin_header(obj_ids, target="directshape"):
 
     target is ALWAYS written, even when it equals the default: Revit treats
     its absence as directshape, but an explicit header reads in the logs
-    without knowing that rule. The object limit depends on the target."""
+    without knowing that rule. The object limit depends on the target.
+
+    host: None for a normal bake. The obj_id of the active object for "Bake
+    together": one family with all the objects, named after the host,
+    placed at its origin and identified by its obj_id. Only with target
+    family, and the host must be one of obj_ids."""
     # The target is checked before the ids: a wrong value is a caller
     # defect, and the message must say so instead of talking about the
     # objects. isinstance before "in": a number or a list must not reach a
@@ -355,11 +360,20 @@ def build_bake_begin_header(obj_ids, target="directshape"):
             "bake_begin: unknown target {!r}, allowed values are {}".format(
                 target, ", ".join(BAKE_TARGETS)))
     limit = MAX_FAMILY_BAKE_OBJECTS if target == "family" else MAX_BAKE_OBJECTS
-    return {
+    header = {
         "type": "bake_begin",
         "obj_ids": _normalize_object_ids(obj_ids, "bake_begin", limit),
         "target": target,
     }
+    if host is not None:
+        if target != "family":
+            raise BridgeFramingError("bake_begin: host (bake together) is only allowed with target family")
+        normalized = _normalize_object_ids([host], "bake_begin")[0]
+        if normalized not in header["obj_ids"]:
+            raise BridgeFramingError(
+                "bake_begin: host {!r} is not among the announced obj_ids".format(normalized))
+        header["host"] = normalized
+    return header
 
 
 def build_bake_mesh_header(obj_id, name, category, matrix,

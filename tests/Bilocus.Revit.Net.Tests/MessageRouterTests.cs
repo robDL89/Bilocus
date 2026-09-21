@@ -970,6 +970,44 @@ namespace Bilocus.Revit.Net.Tests
             Assert.Equal(1, router.AbandonedBakeBatches);
         }
 
+        // ---- bake together: host ----
+
+        [Fact]
+        public void BakeBegin_WithHost_QueuesATogetherBatch()
+        {
+            MessageRouter router = new MessageRouter(new GeometryStore());
+            Sink sink = new Sink();
+
+            Send(router, sink,
+                "{\"type\": \"bake_begin\", \"obj_ids\": [\"obj-1\", \"obj-2\"], \"target\": \"family\", \"host\": \"obj-2\"}",
+                null);
+            BakeMesh(router, sink, "obj-1");
+            BakeMesh(router, sink, "obj-2");
+            BakeEnd(router, sink);
+
+            Assert.Empty(sink.Sent);
+            List<BakeBatch> pending = router.TakePendingBakes();
+            Assert.Single(pending);
+            Assert.Equal("obj-2", pending[0].Host);
+            Assert.True(pending[0].Together);
+        }
+
+        [Theory]
+        [InlineData("{\"type\": \"bake_begin\", \"obj_ids\": [\"obj-1\", \"obj-2\"], \"host\": \"obj-2\"}")]
+        [InlineData("{\"type\": \"bake_begin\", \"obj_ids\": [\"obj-1\", \"obj-2\"], \"target\": \"family\", \"host\": \"obj-3\"}")]
+        [InlineData("{\"type\": \"bake_begin\", \"obj_ids\": [\"obj-1\", \"obj-2\"], \"target\": \"family\", \"host\": 2}")]
+        public void BakeBegin_WithAnInvalidHost_RepliesError(string header)
+        {
+            MessageRouter router = new MessageRouter(new GeometryStore());
+            Sink sink = new Sink();
+
+            Send(router, sink, header, null);
+
+            Assert.Single(sink.Sent);
+            Assert.StartsWith("bake_begin:", ErrorMessageOf(sink, 0));
+            Assert.False(router.HasOpenBakeBatch);
+        }
+
         [Fact]
         public void BakeBegin_WithAnEmptyList_RepliesError()
         {

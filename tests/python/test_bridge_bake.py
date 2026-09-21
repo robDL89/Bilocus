@@ -1082,3 +1082,26 @@ def test_format_of_a_failed_remove():
 def test_format_of_a_failed_remove_without_a_message_says_so():
     assert formatted(action="remove", ok=False, message="") == (
         "removal FAILED - reason not reported by Revit")
+
+
+# --- bake together: host ---------------------------------------------------------
+
+def test_bake_begin_with_host_writes_the_normalized_host():
+    header = bridge_bake.build_bake_begin_header(["abc", "def"], target="family", host=" def ")
+    assert header["host"] == "def"
+    assert header["target"] == "family"
+
+
+def test_bake_begin_without_host_has_no_host_field():
+    header = bridge_bake.build_bake_begin_header(["abc", "def"], target="family")
+    assert "host" not in header
+
+
+def test_bake_begin_host_is_only_for_families():
+    with pytest.raises(BridgeFramingError):
+        bridge_bake.build_bake_begin_header(["abc", "def"], target="directshape", host="abc")
+
+
+def test_bake_begin_host_must_be_announced():
+    with pytest.raises(BridgeFramingError):
+        bridge_bake.build_bake_begin_header(["abc", "def"], target="family", host="xyz")

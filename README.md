@@ -26,8 +26,10 @@ by Autodesk, the Blender Foundation or Anthropic.
   can snap to and use as references.
 - **Bake.** When a shape is final, bake it into the Revit model as a
   **DirectShape** or as a loadable **family** (`BL_<name>`), with the Revit
-  category of your choice. Baking again replaces the previous version;
-  **Remove Bake** deletes what Bilocus created.
+  category of your choice. With **Bake together** checked, all the selected
+  objects go into one family named after the active object. Baking again
+  replaces the previous version; **Remove Bake** deletes what Bilocus
+  created.
 
 Reference measurement: 385 objects and 1,042,674 triangles synced in 2.5 s.
 

@@ -307,5 +307,61 @@ namespace Bilocus.Geometry.Tests
                 FamilyPlacement.Decompose(Identity()).ToFamilyPoints(new float[] { 0f, 0f });
             });
         }
+
+        // ---- bake together: points of another object ----
+
+        private static float[] Translated(float[] matrix, float x, float y, float z)
+        {
+            float[] m = (float[])matrix.Clone();
+            m[3] = x; m[7] = y; m[11] = z;
+            return m;
+        }
+
+        [Fact]
+        public void ToFamilyPointsOf_ItsOwnMatrix_EqualsToFamilyPoints()
+        {
+            float[] host = Translated(RotationZ(30), 1.5f, -2f, 0.5f);
+            float[] local = { 0, 0, 0, 1, 0, 0, 0, 2, 3 };
+            FamilyPlacement placement = FamilyPlacement.Decompose(host);
+
+            AssertPoints(placement.ToFamilyPoints(local), placement.ToFamilyPointsOf(host, local), Tolerance);
+        }
+
+        // The instance (origin and plan angle of the ACTIVE object) applied to
+        // the family points gives back the member's world points.
+        [Fact]
+        public void ToFamilyPointsOf_AnotherObject_RebuildsItsWorldPoints()
+        {
+            float[] host = Translated(RotationZ(30), 1.5f, -2f, 0.5f);
+            double a = 50 * Math.PI / 180.0;
+            float c = (float)Math.Cos(a);
+            float s = (float)Math.Sin(a);
+            float[] member = { 1, 0, 0, 5, 0, c, -s, -1, 0, s, c, 2, 0, 0, 0, 1 };
+            float[] local = { 0, 0, 0, 1, 0, 0, 0, 2, 3 };
+
+            FamilyPlacement placement = FamilyPlacement.Decompose(host);
+            double[] family = placement.ToFamilyPointsOf(member, local);
+            double[] world = RowMajorMatrix.TransformPoints(member, local);
+
+            double cz = Math.Cos(placement.AngleRadians);
+            double sz = Math.Sin(placement.AngleRadians);
+            double[] origin = placement.OriginMeters;
+            for (int i = 0; i < family.Length; i += 3)
+            {
+                AssertClose(world[i], cz * family[i] - sz * family[i + 1] + origin[0], Tolerance, "x");
+                AssertClose(world[i + 1], sz * family[i] + cz * family[i + 1] + origin[1], Tolerance, "y");
+                AssertClose(world[i + 2], family[i + 2] + origin[2], Tolerance, "z");
+            }
+        }
+
+        [Fact]
+        public void ToFamilyPointsOf_RejectsAMatrixOfTheWrongSize()
+        {
+            FamilyPlacement placement = FamilyPlacement.Decompose(Identity());
+            Assert.Throws<ArgumentException>(delegate
+            {
+                placement.ToFamilyPointsOf(new float[12], new float[] { 0f, 0f, 0f });
+            });
+        }
     }
 }

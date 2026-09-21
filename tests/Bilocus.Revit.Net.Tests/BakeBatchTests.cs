@@ -27,6 +27,44 @@ namespace Bilocus.Revit.Net.Tests
             Assert.Equal(new List<string> { "b", "a", "c" }, batch.AnnouncedIds);
         }
 
+        // ---- bake together ----
+
+        [Fact]
+        public void Host_IsNormalized_AndMakesTheBatchTogether()
+        {
+            BakeBatch batch = new BakeBatch(Ids("a", "b"), BakeTarget.Family, " b ");
+
+            Assert.Equal("b", batch.Host);
+            Assert.True(batch.Together);
+        }
+
+        [Fact]
+        public void WithoutHost_TheBatchIsNotTogether()
+        {
+            BakeBatch batch = new BakeBatch(Ids("a", "b"), BakeTarget.Family);
+
+            Assert.Null(batch.Host);
+            Assert.False(batch.Together);
+        }
+
+        [Fact]
+        public void Host_IsOnlyAllowedForFamilies()
+        {
+            Assert.Throws<ArgumentException>(delegate
+            {
+                new BakeBatch(Ids("a", "b"), BakeTarget.DirectShape, "a");
+            });
+        }
+
+        [Fact]
+        public void Host_MustBeAnnounced()
+        {
+            Assert.Throws<ArgumentException>(delegate
+            {
+                new BakeBatch(Ids("a", "b"), BakeTarget.Family, "c");
+            });
+        }
+
         [Fact]
         public void Constructor_RejectsNull()
         {

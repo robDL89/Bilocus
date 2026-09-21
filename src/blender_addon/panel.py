@@ -136,7 +136,7 @@ class BILOCUS_OT_bake_family(bpy.types.Operator):
                       "railings are not allowed".format(coll.COLLECTION_NAME))
 
     def execute(self, context):
-        level, message = bake.bake_selected(context, "family")
+        level, message = bake.bake_selected(context, "family", bake.together_of(context.scene))
         self.report({level}, message)
         if level == 'ERROR':
             return {'CANCELLED'}
@@ -381,6 +381,8 @@ class BILOCUS_PT_panel(bpy.types.Panel):
         # working inside Blender 5.1 and 5.2. The text tells them apart.
         column.operator("bilocus.bake_directshape", icon='EXPORT')
         column.operator("bilocus.bake_family", icon='EXPORT')
+        if hasattr(context.scene, bake.TOGETHER_PROPERTY):
+            box.prop(context.scene, bake.TOGETHER_PROPERTY)
 
         removable, _removable_ids = bake.remove_targets(context)
         row = box.row()

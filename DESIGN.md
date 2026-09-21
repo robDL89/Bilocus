@@ -173,7 +173,7 @@ failure would have to be treated as terminal.
 | `sync_end` | `{type}` | - |
 | `preview_style` | `{type, face, edge}` | - |
 | `proxy_edges` | `{type, obj_id, name, edge_count, arc_count?}` | `edge_count * 6` float32: two endpoints per edge, x y z each; then `arc_count * 9` float32: start, end, mid-angle point per arc |
-| `bake_begin` | `{type, obj_ids, target}` | - |
+| `bake_begin` | `{type, obj_ids, target, host?}` | - |
 | `bake_mesh` | `{type, obj_id, name, category, matrix, vert_count, face_count, loop_count, tri_count, accept_open}` | positions (vert_count*3 f32) + face_sizes (face_count u32) + face_vertices (loop_count u32) + tri_vertices (tri_count*3 u32) + tri_faces (tri_count u32) |
 | `bake_end` | `{type}` | - |
 | `bake_remove` | `{type, obj_ids}` | - |
@@ -440,6 +440,24 @@ outcome (open mesh); `Mesh`/`Mixed` do not yield a `Solid` and stay as
 DirectShape only. An object has in Revit either a DirectShape or a
 family: baking in the other mode removes the previous one (`switched`).
 At most 50 objects per family batch.
+
+**Bake together, `host` on the batch** (family only). With the "Bake
+together" checkbox Blender sends `host`, the `obj_id` of the active object,
+which must be among `obj_ids`. The whole batch becomes ONE family: named
+`BL_<host name>`, category of the host (the Note lists members with a
+different one), instance at the host's origin and plan rotation, the other
+objects inside in their position relative to the host
+(`FamilyPlacement.ToFamilyPointsOf`). Family and instance carry the host's
+`obj_id`; every `FreeFormElement` carries the `obj_id` of its own object. A
+normal family bake is the same thing with a group of one. Re-bake with the
+same host aligns the family to the objects of THIS bake: their
+`FreeFormElement`s are updated or added, the bridge's ones of objects no
+longer in the bake are deleted (the user's own elements have no mark and
+stay). A member that fails is reported and keeps its previous
+`FreeFormElement`; if the host fails, nothing is written. The DirectShapes
+of all members and the families of their own of the non-host members are
+removed (`switched`). Remove Bake finds a together family through its host
+only.
 
 `bake_remove` deletes all `DirectShape` elements, families and instances
 marked with those ids, copies included: it is the explicit request to

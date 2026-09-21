@@ -335,7 +335,21 @@ namespace Bilocus.Revit.Net
                 // keeps doing the bake it used to do. The target is read
                 // before the ids because it decides their cap.
                 string target = OptionalTarget(root);
-                _openBakeBatch = new BakeBatch(RequireStrings(root, "obj_ids"), target);
+
+                // host present = "Bake together" (DESIGN.md 5.3). Present
+                // but not a string is an error, not an absence.
+                string host = null;
+                JsonElement hostField;
+                if (root.TryGetProperty("host", out hostField))
+                {
+                    if (hostField.ValueKind != JsonValueKind.String)
+                    {
+                        throw new ContentException("host must be a string (obj_id of the active object)");
+                    }
+                    host = hostField.GetString();
+                }
+
+                _openBakeBatch = new BakeBatch(RequireStrings(root, "obj_ids"), target, host);
             }
             catch (ContentException ex)
             {
