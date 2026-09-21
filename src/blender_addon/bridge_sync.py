@@ -15,6 +15,8 @@ import bridge_client as client
 import bridge_collection as coll
 import bridge_extract as extract
 import bridge_mesh as mesh
+import bridge_protocol as protocol
+import bridge_style as style
 
 # Safety thresholds on the VERTEX count of the evaluated mesh, per object.
 # These are the defaults: the scene properties registered below make them
@@ -60,10 +62,36 @@ def register_properties():
                     "removes the limit",
         default=DEFAULT_MAX_VERTICES,
         min=0)
+    bpy.types.Scene.bilocus_face_color = bpy.props.FloatVectorProperty(
+        name="Faces",
+        description="Color of the preview faces inside Revit",
+        subtype='COLOR_GAMMA',
+        size=3,
+        min=0.0,
+        max=1.0,
+        default=style.DEFAULT_FACE_COLOR,
+        update=_on_style_changed)
+    bpy.types.Scene.bilocus_edge_color = bpy.props.FloatVectorProperty(
+        name="Edges",
+        description="Color of the preview edges inside Revit",
+        subtype='COLOR_GAMMA',
+        size=3,
+        min=0.0,
+        max=1.0,
+        default=style.DEFAULT_EDGE_COLOR,
+        update=_on_style_changed)
+
+
+def _on_style_changed(self, context):
+    # Property update callbacks run on the main thread, like operators:
+    # sending from here is safe. Not connected: nothing to do, the colors
+    # go out at the next Connect.
+    send_style(context.scene)
 
 
 def unregister_properties():
-    for name in ("bilocus_warn_vertices", "bilocus_max_vertices"):
+    for name in ("bilocus_warn_vertices", "bilocus_max_vertices",
+                 "bilocus_face_color", "bilocus_edge_color"):
         if hasattr(bpy.types.Scene, name):
             delattr(bpy.types.Scene, name)
 
@@ -123,6 +151,10 @@ def sync_all(context=None):
     if editing:
         return 'ERROR', "Sync refused: {} in Edit Mode. Go back to Object " \
                         "Mode (Tab) and press Sync again".format(", ".join(editing[:3]))
+
+    # The colors travel with every Sync too: a Revit restarted in the
+    # meantime would otherwise draw the defaults until the next change.
+    send_style(scene)
 
     started = time.time()
     warn_limit, reject_limit = limits(scene)
@@ -218,3 +250,15 @@ def send_remove(obj_id):
 
 def send_clear():
     return client.CLIENT.send(mesh.build_clear_header())
+
+
+def send_style(scene):
+    """Sends the preview colors of the scene. False if not connected or if
+    the colors are invalid (they cannot be, the properties are clamped)."""
+    if not client.CLIENT.running:
+        return False
+    try:
+        header = style.build_style_header(scene.bilocus_face_color, scene.bilocus_edge_color)
+    except protocol.BridgeFramingError:
+        return False
+    return client.CLIENT.send(header)

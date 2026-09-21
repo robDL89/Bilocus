@@ -258,6 +258,64 @@ namespace Bilocus.Revit.Net.Tests
             Assert.Empty(store.Objects);
         }
 
+        // ---- preview_style ----
+
+        [Fact]
+        public void PreviewStyle_SetsTheColorsAndBumpsTheRevision()
+        {
+            GeometryStore store = new GeometryStore();
+            MessageRouter router = new MessageRouter(store);
+            Sink sink = new Sink();
+            long before = store.Revision;
+
+            router.Handle(new Frame(
+                "{\"type\":\"preview_style\",\"face\":[0.2,0.3,0.4],\"edge\":[0.9,0.8,0.7]}", null),
+                sink.Send, Host);
+
+            Assert.Empty(sink.Sent);
+            Assert.Equal(new float[] { 0.2f, 0.3f, 0.4f }, store.FaceColor);
+            Assert.Equal(new float[] { 0.9f, 0.8f, 0.7f }, store.EdgeColor);
+            Assert.True(store.Revision > before);
+            Assert.Equal(store.Revision, store.StyleRevision);
+        }
+
+        // Blender resends the style at every Connect and Sync: the same
+        // colors must not invalidate the GPU buffers again.
+        [Fact]
+        public void PreviewStyle_Unchanged_DoesNotBumpTheRevision()
+        {
+            GeometryStore store = new GeometryStore();
+            MessageRouter router = new MessageRouter(store);
+            Sink sink = new Sink();
+            string header = "{\"type\":\"preview_style\",\"face\":[0.2,0.3,0.4],\"edge\":[0.9,0.8,0.7]}";
+
+            router.Handle(new Frame(header, null), sink.Send, Host);
+            long after = store.Revision;
+            router.Handle(new Frame(header, null), sink.Send, Host);
+
+            Assert.Equal(after, store.Revision);
+        }
+
+        [Theory]
+        [InlineData("{\"type\":\"preview_style\",\"face\":[0.2,0.3],\"edge\":[0.9,0.8,0.7]}")]
+        [InlineData("{\"type\":\"preview_style\",\"face\":[0.2,0.3,0.4]}")]
+        [InlineData("{\"type\":\"preview_style\",\"face\":[0.2,0.3,1.5],\"edge\":[0.9,0.8,0.7]}")]
+        [InlineData("{\"type\":\"preview_style\",\"face\":[0.2,0.3,0.4],\"edge\":[-0.1,0.8,0.7]}")]
+        public void PreviewStyle_Invalid_IsRejectedAndKeepsTheDefaults(string header)
+        {
+            GeometryStore store = new GeometryStore();
+            MessageRouter router = new MessageRouter(store);
+            Sink sink = new Sink();
+
+            router.Handle(new Frame(header, null), sink.Send, Host);
+
+            Assert.Single(sink.Sent);
+            Assert.Equal("error", sink.TypeOf(0));
+            Assert.Equal(GeometryStore.DefaultFaceColor, store.FaceColor);
+            Assert.Equal(GeometryStore.DefaultEdgeColor, store.EdgeColor);
+            Assert.Equal(0, store.StyleRevision);
+        }
+
         // ---- sync ----
 
         [Fact]

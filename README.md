@@ -16,7 +16,8 @@ by Autodesk, the Blender Foundation or Anthropic.
 - **Live preview, Blender -> Revit.** Put objects in the Blender collection
   `ToRevit`, press **Sync** and the geometry appears in the Revit 3D views.
   Move, rotate or scale an object and Revit follows in real time. The
-  preview is graphics only: nothing is added to the Revit model.
+  preview is graphics only: nothing is added to the Revit model. Face and
+  edge colors are set in the Blender panel.
 - **Selection pull, Revit -> Blender.** Select elements in Revit and press
   **Send Selection to Blender**: they arrive in the `FromRevit` collection,
   with openings in the right place. Sending again updates them in place.

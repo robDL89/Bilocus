@@ -22,6 +22,9 @@ namespace Bilocus.Revit.Preview
             new Dictionary<string, List<GpuChunk>>();
         private readonly Dictionary<string, long> _builtFor = new Dictionary<string, long>();
 
+        // Style revision the cached buffers were built with (0 = defaults).
+        private long _builtStyleRevision;
+
         public string LastError = "";
 
         public PreviewServer(GeometryStore store) { _store = store; }
@@ -62,6 +65,14 @@ namespace Bilocus.Revit.Preview
         {
             try
             {
+                // The colors live inside the vertex buffers: a new style
+                // means rebuilding them all, once.
+                if (_store.StyleRevision != _builtStyleRevision)
+                {
+                    DiscardCache();
+                    _builtStyleRevision = _store.StyleRevision;
+                }
+
                 foreach (StoredObject item in _store.Objects)
                 {
                     List<GpuChunk> chunks = GetOrBuild(item);
@@ -71,7 +82,7 @@ namespace Bilocus.Revit.Preview
                     foreach (GpuChunk chunk in chunks)
                     {
                         if (DrawContext.IsInterrupted()) { return; }
-                        chunk.Draw();
+                        chunk.Draw(displayStyle);
                     }
                 }
                 // Precaution: the DrawContext is shared across the registered
@@ -107,13 +118,14 @@ namespace Bilocus.Revit.Preview
                 if (allValid) { return chunks; }
             }
 
-            ColorWithTransparency color = ToRevitColor(item.Color);
+            ColorWithTransparency faceColor = ToRevitColor(_store.FaceColor);
+            ColorWithTransparency edgeColor = ToRevitColor(_store.EdgeColor);
 
             chunks = new List<GpuChunk>();
             foreach (MeshChunk source in item.Chunks)
             {
                 GpuChunk gpu = new GpuChunk();
-                gpu.Build(source, color);
+                gpu.Build(source, faceColor, edgeColor);
                 chunks.Add(gpu);
             }
 
@@ -137,13 +149,14 @@ namespace Bilocus.Revit.Preview
             return transform;
         }
 
-        private static ColorWithTransparency ToRevitColor(float[] rgba)
+        // RGB in 0..1 to an opaque Revit color. The preview is never drawn
+        // in the transparent pass (UseInTransparentPass is false).
+        private static ColorWithTransparency ToRevitColor(float[] rgb)
         {
-            uint r = (uint)Math.Max(0, Math.Min(255, (int)(rgba[0] * 255)));
-            uint g = (uint)Math.Max(0, Math.Min(255, (int)(rgba[1] * 255)));
-            uint b = (uint)Math.Max(0, Math.Min(255, (int)(rgba[2] * 255)));
-            uint transparency = (uint)Math.Max(0, Math.Min(100, (int)((1.0 - rgba[3]) * 100)));
-            return new ColorWithTransparency(r, g, b, transparency);
+            uint r = (uint)Math.Max(0, Math.Min(255, (int)Math.Round(rgb[0] * 255)));
+            uint g = (uint)Math.Max(0, Math.Min(255, (int)Math.Round(rgb[1] * 255)));
+            uint b = (uint)Math.Max(0, Math.Min(255, (int)Math.Round(rgb[2] * 255)));
+            return new ColorWithTransparency(r, g, b, 0);
         }
 
         public void DiscardCache()

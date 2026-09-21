@@ -186,6 +186,10 @@ namespace Bilocus.Revit.Net
                         _store.EndSync();
                         break;
 
+                    case "preview_style":
+                        _store.SetStyle(RequireColor(root, "face"), RequireColor(root, "edge"));
+                        break;
+
                     case "proxy_edges":
                         HandleProxyEdges(root, frame.Payload);
                         break;
@@ -810,6 +814,22 @@ namespace Bilocus.Revit.Net
                     "field {0} missing or not an array of {1} numbers", name, count));
             }
             return values;
+        }
+
+        // RGB in 0..1. Out of range is a defect of the sender: clamping it
+        // silently would hide it.
+        private static float[] RequireColor(JsonElement root, string name)
+        {
+            float[] rgb = RequireFloats(root, name, 3);
+            foreach (float value in rgb)
+            {
+                if (value < 0f || value > 1f)
+                {
+                    throw new ContentException(string.Format(
+                        "field {0}: color components must be between 0 and 1", name));
+                }
+            }
+            return rgb;
         }
 
         // null if the field is missing entirely. If present but wrong, it is

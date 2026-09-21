@@ -20,6 +20,8 @@ class BILOCUS_OT_connect(bpy.types.Operator):
 
     def execute(self, context):
         client.CLIENT.connect()
+        # Revit starts with the default colors: send the scene's right away.
+        sync.send_style(context.scene)
         self.report({'INFO'}, client.CLIENT.status)
         return {'FINISHED'}
 
@@ -253,6 +255,13 @@ class BILOCUS_PT_panel(bpy.types.Panel):
         box = layout.box()
         box.label(text="Last sync")
         box.label(text=sync.LAST_SYNC["message"])
+
+        # Preview colors: applied in Revit immediately, no Sync needed.
+        box = layout.box()
+        box.label(text="Preview colors in Revit")
+        row = box.row()
+        row.prop(context.scene, "bilocus_face_color")
+        row.prop(context.scene, "bilocus_edge_color")
 
         # Proxy: the only bridge command that WRITES into the Revit
         # document. Different source from the rest of the panel, and this

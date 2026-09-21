@@ -33,6 +33,44 @@ namespace Bilocus.Revit.Preview
 
         public long Revision { get { return _revision; } }
 
+        // Preview colors, RGB in 0..1, chosen in the Blender panel for the
+        // whole preview and sent with preview_style. The defaults are the
+        // same as the Blender side: medium gray faces, light gray edges.
+        public static readonly float[] DefaultFaceColor = { 0.51f, 0.51f, 0.51f };
+        public static readonly float[] DefaultEdgeColor = { 0.69f, 0.69f, 0.69f };
+
+        private float[] _faceColor = (float[])DefaultFaceColor.Clone();
+        private float[] _edgeColor = (float[])DefaultEdgeColor.Clone();
+
+        public float[] FaceColor { get { return (float[])_faceColor.Clone(); } }
+        public float[] EdgeColor { get { return (float[])_edgeColor.Clone(); } }
+
+        // Revision of the last color change: the colors are baked into the
+        // GPU vertex buffers, so PreviewServer rebuilds them when it moves.
+        public long StyleRevision { get; private set; }
+
+        // Returns false when nothing changed: Blender resends the style at
+        // every Connect and Sync, and an unchanged style must not throw
+        // away every GPU buffer.
+        public bool SetStyle(float[] faceColor, float[] edgeColor)
+        {
+            if (faceColor == null || faceColor.Length != 3) throw new System.ArgumentException("faceColor must have 3 components");
+            if (edgeColor == null || edgeColor.Length != 3) throw new System.ArgumentException("edgeColor must have 3 components");
+
+            if (SameColor(faceColor, _faceColor) && SameColor(edgeColor, _edgeColor)) { return false; }
+
+            _faceColor = (float[])faceColor.Clone();
+            _edgeColor = (float[])edgeColor.Clone();
+            _revision++;
+            StyleRevision = _revision;
+            return true;
+        }
+
+        private static bool SameColor(float[] a, float[] b)
+        {
+            return a[0] == b[0] && a[1] == b[1] && a[2] == b[2];
+        }
+
         public List<StoredObject> Objects
         {
             get { return new List<StoredObject>(_objects.Values); }

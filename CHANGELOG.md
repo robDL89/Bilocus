@@ -12,4 +12,6 @@ First public release.
   or arcs.
 - Bake into Revit as DirectShape or as loadable family (`BL_<name>`), with
   Revit category, replacement on re-bake and Remove Bake.
+- Preview colors for faces and edges chosen in the Blender panel, applied
+  in Revit immediately; edges drawn in every display style.
 - Revit 2024 and 2025, Blender 5.1 and 5.2.
