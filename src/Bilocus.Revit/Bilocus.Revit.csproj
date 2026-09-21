@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RevitVersion Condition="'$(RevitVersion)' == ''">2025</RevitVersion>
+    <TargetFramework Condition="'$(RevitVersion)' &gt;= '2025'">net8.0-windows</TargetFramework>
+    <TargetFramework Condition="'$(RevitVersion)' &lt; '2025'">net48</TargetFramework>
+    <AssemblyName>Bilocus.Revit</AssemblyName>
+    <RootNamespace>Bilocus.Revit</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" Condition="'$(TargetFramework)' == 'net48'" />
+    <!-- System.Text.Json is not in the .NET Framework BCL: without this
+         package MessageRouter does not compile for Revit 2024. On
+         net8.0-windows it is already in the framework and the reference is
+         not needed. -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" Condition="'$(TargetFramework)' == 'net48'" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bilocus.Protocol\Bilocus.Protocol.csproj" />
+    <ProjectReference Include="..\Bilocus.Geometry\Bilocus.Geometry.csproj" />
+  </ItemGroup>
+</Project>

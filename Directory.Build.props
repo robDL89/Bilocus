@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <Configurations>Debug;Release</Configurations>
+    <!-- License: MIT for the .NET projects, see LICENSE.txt -->
+    <Version>0.1.0</Version>
+    <Authors>Roberto Dolfini</Authors>
+    <Company>Roberto Dolfini</Company>
+    <Product>Bilocus</Product>
+    <Copyright>Copyright (c) 2026 Roberto Dolfini</Copyright>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,64 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{D53A6CC3-D715-46F0-8932-9459EDE12983}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bilocus.Protocol", "src\Bilocus.Protocol\Bilocus.Protocol.csproj", "{31862FD3-B252-4E03-BBD6-A2431EA132F5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bilocus.Revit", "src\Bilocus.Revit\Bilocus.Revit.csproj", "{0DF0BA3C-DD0C-4CE6-BB60-ECA0EBB3120E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D3718F05-1584-41B1-833A-4A963BCCB3DF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bilocus.Protocol.Tests", "tests\Bilocus.Protocol.Tests\Bilocus.Protocol.Tests.csproj", "{013CEBA0-4269-4229-9CB4-C0AB8FFC499B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bilocus.Revit.Net.Tests", "tests\Bilocus.Revit.Net.Tests\Bilocus.Revit.Net.Tests.csproj", "{C928AC1E-F9B5-43F9-8971-075323FC78D7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bilocus.Geometry", "src\Bilocus.Geometry\Bilocus.Geometry.csproj", "{5694FAE8-2E51-46A2-8D8A-C1D9D9A97BFF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bilocus.Geometry.Tests", "tests\Bilocus.Geometry.Tests\Bilocus.Geometry.Tests.csproj", "{3DE8D3DB-E582-4709-8000-7390267EE030}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{31862FD3-B252-4E03-BBD6-A2431EA132F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{31862FD3-B252-4E03-BBD6-A2431EA132F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{31862FD3-B252-4E03-BBD6-A2431EA132F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{31862FD3-B252-4E03-BBD6-A2431EA132F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0DF0BA3C-DD0C-4CE6-BB60-ECA0EBB3120E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0DF0BA3C-DD0C-4CE6-BB60-ECA0EBB3120E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0DF0BA3C-DD0C-4CE6-BB60-ECA0EBB3120E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0DF0BA3C-DD0C-4CE6-BB60-ECA0EBB3120E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{013CEBA0-4269-4229-9CB4-C0AB8FFC499B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{013CEBA0-4269-4229-9CB4-C0AB8FFC499B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{013CEBA0-4269-4229-9CB4-C0AB8FFC499B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{013CEBA0-4269-4229-9CB4-C0AB8FFC499B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C928AC1E-F9B5-43F9-8971-075323FC78D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C928AC1E-F9B5-43F9-8971-075323FC78D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C928AC1E-F9B5-43F9-8971-075323FC78D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C928AC1E-F9B5-43F9-8971-075323FC78D7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5694FAE8-2E51-46A2-8D8A-C1D9D9A97BFF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5694FAE8-2E51-46A2-8D8A-C1D9D9A97BFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5694FAE8-2E51-46A2-8D8A-C1D9D9A97BFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5694FAE8-2E51-46A2-8D8A-C1D9D9A97BFF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3DE8D3DB-E582-4709-8000-7390267EE030}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3DE8D3DB-E582-4709-8000-7390267EE030}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3DE8D3DB-E582-4709-8000-7390267EE030}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3DE8D3DB-E582-4709-8000-7390267EE030}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{31862FD3-B252-4E03-BBD6-A2431EA132F5} = {D53A6CC3-D715-46F0-8932-9459EDE12983}
+		{0DF0BA3C-DD0C-4CE6-BB60-ECA0EBB3120E} = {D53A6CC3-D715-46F0-8932-9459EDE12983}
+		{013CEBA0-4269-4229-9CB4-C0AB8FFC499B} = {D3718F05-1584-41B1-833A-4A963BCCB3DF}
+		{C928AC1E-F9B5-43F9-8971-075323FC78D7} = {D3718F05-1584-41B1-833A-4A963BCCB3DF}
+		{5694FAE8-2E51-46A2-8D8A-C1D9D9A97BFF} = {D53A6CC3-D715-46F0-8932-9459EDE12983}
+		{3DE8D3DB-E582-4709-8000-7390267EE030} = {D3718F05-1584-41B1-833A-4A963BCCB3DF}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,43 @@
+Bilocus
+Copyright (c) 2026 Roberto Dolfini
+
+Bilocus was conceived by Roberto Dolfini, holder of the rights, and
+developed together with Claude Code (Anthropic) in vibe coding.
+
+Bilocus is made of two programs that run as separate processes and talk to
+each other over a local TCP socket. Each is released under its own license.
+
+1. Blender add-on - GNU General Public License v3.0 or later
+   (SPDX: GPL-3.0-or-later). Full text: LICENSES/GPL-3.0-or-later.txt
+
+   Applies to:
+     src/blender_addon/
+     tests/python/
+     tests/blender/
+
+2. Revit add-in and everything else in this repository - MIT License
+   (SPDX: MIT). Full text: LICENSES/MIT.txt
+
+   Applies to:
+     src/Bilocus.Protocol/
+     src/Bilocus.Geometry/
+     src/Bilocus.Revit/
+     tests/Bilocus.*/
+     tests/vectors/
+     tools/
+     documentation and build files
+
+   Use of the Revit add-in is also subject to the Terms of Use in
+   TERMS-OF-USE.md, required by the Autodesk Platform Services Terms.
+
+Each source file carries an SPDX-License-Identifier line stating which of
+the two licenses applies to it.
+
+The Revit add-in package for Revit 2024 redistributes some Microsoft .NET
+libraries under their own license: see THIRD-PARTY-NOTICES.txt.
+
+Autodesk and Revit are registered trademarks or trademarks of Autodesk,
+Inc., and/or its subsidiaries and/or affiliates in the USA and/or other
+countries. Blender is a registered trademark of the Blender Foundation.
+Bilocus is an independent project, not affiliated with nor endorsed by
+Autodesk, the Blender Foundation or Anthropic.

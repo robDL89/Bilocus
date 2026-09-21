@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Bilocus</Name>
+    <Assembly>Bilocus\Bilocus.Revit.dll</Assembly>
+    <AddInId>3f8a1d42-5c07-4b93-a6e1-7d2f9b04c518</AddInId>
+    <FullClassName>Bilocus.Revit.App</FullClassName>
+    <VendorId>RDLF</VendorId>
+    <VendorDescription>Roberto Dolfini</VendorDescription>
+  </AddIn>
+</RevitAddIns>

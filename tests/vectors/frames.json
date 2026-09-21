@@ -1,0 +1,43 @@
+{
+  "description": "Golden vectors for Bilocus framing. header is the exact string to serialize, payload_hex and frame_hex are lowercase hex with no separators. The constants block pins down the wire contract's values: both suites assert it against their own constants, so a change on one side only makes the other fail.",
+  "constants": {
+    "protocol_version": 1,
+    "default_port": 9877,
+    "default_host": "127.0.0.1",
+    "meters_per_foot": 0.3048,
+    "max_header_bytes": 1048576,
+    "max_payload_bytes": 268435456
+  },
+  "vectors": [
+    {
+      "name": "header_ascii_no_payload",
+      "header": "{\"type\":\"clear\"}",
+      "payload_hex": "",
+      "frame_hex": "100000007b2274797065223a22636c656172227d00000000"
+    },
+    {
+      "name": "header_with_short_payload",
+      "header": "ab",
+      "payload_hex": "07",
+      "frame_hex": "0200000061620100000007"
+    },
+    {
+      "name": "multibyte_payload",
+      "header": "{\"n\":1}",
+      "payload_hex": "0102030405",
+      "frame_hex": "070000007b226e223a317d050000000102030405"
+    },
+    {
+      "name": "header_utf8_two_byte",
+      "header": "{\"name\":\"S\u00e8dia\"}",
+      "payload_hex": "",
+      "frame_hex": "110000007b226e616d65223a2253c3a8646961227d00000000"
+    },
+    {
+      "name": "header_utf8_four_byte",
+      "header": "{\"n\":\"\ud83d\ude00\"}",
+      "payload_hex": "",
+      "frame_hex": "0c0000007b226e223a22f09f9880227d00000000"
+    }
+  ]
+}

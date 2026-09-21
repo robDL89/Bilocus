@@ -1,0 +1,77 @@
+Bilocus - Third-party notices
+
+Bilocus itself is Copyright (c) 2026 Roberto Dolfini (see LICENSE.txt).
+This file lists the third-party components that are redistributed with it.
+
+
+1. Revit add-in for Revit 2024 (net48 build)
+--------------------------------------------
+
+Revit 2024 runs on .NET Framework 4.8, which does not include
+System.Text.Json. The add-in therefore ships these Microsoft libraries next
+to Bilocus.Revit.dll. They are unmodified, taken from their official NuGet
+packages:
+
+  Library                                     NuGet package version
+  System.Text.Json.dll                        8.0.5
+  System.Text.Encodings.Web.dll               8.0.0
+  Microsoft.Bcl.AsyncInterfaces.dll           8.0.0
+  System.Runtime.CompilerServices.Unsafe.dll  6.0.0
+  System.Memory.dll                           4.5.5
+  System.Buffers.dll                          4.5.1
+  System.Threading.Tasks.Extensions.dll       4.5.4
+  System.Numerics.Vectors.dll                 4.5.0
+  System.ValueTuple.dll                       4.5.0
+
+Source: https://github.com/dotnet/runtime (and its predecessor
+https://github.com/dotnet/corefx). All of them are released under the
+following license:
+
+    The MIT License (MIT)
+
+    Copyright (c) .NET Foundation and Contributors
+
+    All rights reserved.
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+
+    The above copyright notice and this permission notice shall be included
+    in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+
+2. Revit add-in for Revit 2025 (net8.0-windows build)
+-----------------------------------------------------
+
+No third-party libraries are redistributed: System.Text.Json is part of
+.NET 8, which Revit 2025 provides.
+
+
+3. Autodesk Revit API
+---------------------
+
+RevitAPI.dll and RevitAPIUI.dll are used only as compile-time references
+(through the Nice3point.Revit.Api.RevitAPI and .RevitAPIUI NuGet packages).
+They are NOT redistributed: at run time the add-in uses the copies installed
+with Autodesk Revit software.
+
+
+4. Blender add-on
+-----------------
+
+The Blender add-on uses only the Python standard library and the Blender
+Python API (bpy) provided by Blender at run time. No third-party code is
+redistributed.

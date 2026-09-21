@@ -1,0 +1,147 @@
+# Bilocus
+
+Live bridge between Blender and Autodesk(R) Revit(R) software: the geometry
+modeled in Blender is visible inside Revit in real time, without becoming
+an element of the document.
+
+It works like the Grasshopper preview in Rhino.Inside. It is not an
+exporter and not a file converter: it is a live channel between two
+separate programs running on the same computer.
+
+Free and open source. Independent project, not affiliated with nor endorsed
+by Autodesk, the Blender Foundation or Anthropic.
+
+## What it does
+
+- **Live preview, Blender -> Revit.** Put objects in the Blender collection
+  `ToRevit`, press **Sync** and the geometry appears in the Revit 3D views.
+  Move, rotate or scale an object and Revit follows in real time. The
+  preview is graphics only: nothing is added to the Revit model.
+- **Selection pull, Revit -> Blender.** Select elements in Revit and press
+  **Send Selection to Blender**: they arrive in the `FromRevit` collection,
+  with openings in the right place. Sending again updates them in place.
+- **Snappable proxies.** Select edges of a Blender mesh and press
+  **Create Proxy**: Revit gets real model lines (straight or arcs) that you
+  can snap to and use as references.
+- **Bake.** When a shape is final, bake it into the Revit model as a
+  **DirectShape** or as a loadable **family** (`BL_<name>`), with the Revit
+  category of your choice. Baking again replaces the previous version;
+  **Remove Bake** deletes what Bilocus created.
+
+Reference measurement: 385 objects and 1,042,674 triangles synced in 2.5 s.
+
+## Requirements
+
+- Autodesk Revit 2024 or 2025
+- Blender 5.1 or 5.2
+- Windows. Both programs run on the same computer and talk over a local
+  connection (localhost, port 9877): nothing leaves your machine.
+
+## Installation
+
+Download the zip files from the latest
+[Release](../../releases/latest).
+
+**Revit add-in**
+
+1. Close Revit.
+2. Unzip `Bilocus-Revit2024.zip` or `Bilocus-Revit2025.zip` (the one that
+   matches your Revit) into
+   `%AppData%\Autodesk\Revit\Addins\2024` (or `\2025`). You should get the
+   file `Bilocus.addin` and the folder `Bilocus` side by side.
+3. Start Revit and accept the add-in when Revit asks. A **Bilocus** tab
+   appears in the ribbon.
+
+**Blender add-on**
+
+1. In Blender open *Edit > Preferences > Add-ons*.
+2. From the menu at the top right choose *Install from Disk* and pick
+   `Bilocus-Blender.zip` (do not unzip it).
+3. Enable **Bilocus**. The panel is in the 3D Viewport sidebar (`N`),
+   tab **Bilocus**.
+
+## Quick start
+
+1. Open a project in Revit and a 3D view.
+2. In Blender, select some mesh objects and press **Add Selection**: they
+   go into the `ToRevit` collection.
+3. Press **Connect**, then **Sync**. The geometry appears in the Revit 3D
+   view. Move an object in Blender and watch it move in Revit.
+4. Changed the shape? Press **Sync** again. Transforms are live, geometry
+   is sent only when you ask: that is what keeps big models fast.
+
+The connection is always manual: Bilocus never reconnects on its own. If
+the connection drops, the panel says so.
+
+## Known limits
+
+- The preview is DirectContext3D graphics: it cannot be selected, snapped
+  to, scheduled, printed or exported, and it does not cast shadows. When
+  you need any of that, use **Create Proxy** or **Bake**.
+- The preview shows only in 3D views. For plan or elevation, use a 3D view
+  with an orthographic top or front orientation.
+- Blender and Revit share Revit's internal origin. Project Base Point and
+  Survey Point are not used: keep the model near the origin.
+- Sync refuses to run while an object is in Edit Mode: press Tab first.
+- In Blender, `Shift+D` also copies the Bilocus identifier of an object.
+  Bilocus detects the duplicate at the next Sync and gives it a new one.
+
+## Building from source
+
+```powershell
+tools\deploy-revit.ps1 -RevitVersion 2025   # builds and installs the add-in; refuses to run with Revit open
+tools\deploy-blender.ps1 -BlenderVersion 5.2  # installs the Blender add-on
+```
+
+Requires the .NET SDK. The Revit project is multi-target (`net48` for Revit
+2024, `net8.0-windows` for Revit 2025). Tests: `dotnet test Bilocus.sln`
+and `python -m pytest` in `tests/python`.
+
+**Restart Blender after deploying the add-on.** Disabling and re-enabling
+it does not reload the modules already imported.
+
+Architecture and wire protocol are described in [DESIGN.md](DESIGN.md).
+
+```
+src/Bilocus.Protocol/   message framing and codec
+src/Bilocus.Geometry/   mesh payload and chunking
+src/Bilocus.Revit/      Revit add-in: server, preview, proxy, pull, bake
+src/blender_addon/      Blender add-on
+tests/                  xUnit (.NET) and pytest (Python)
+tools/                  deploy scripts
+```
+
+## Support
+
+Bilocus is free and will stay free. If it saves you time and you want to
+say thanks, you can [buy me a coffee](https://buymeacoffee.com/archrobertodl).
+It is entirely voluntary and gives nothing extra in return.
+
+## Credits
+
+Bilocus was developed by Roberto Dolfini together with Claude Code,
+Anthropic's coding assistant, in vibe coding: Roberto defined the project,
+made the decisions and verified every phase in real Revit and Blender;
+Claude wrote most of the code, the tests and the documentation.
+
+## Terms of use
+
+By installing or using the Bilocus add-in for Revit you agree to the
+[Terms of Use](TERMS-OF-USE.md), which include the
+[Autodesk Acceptable Use Policy](https://www.autodesk.com/company/terms-of-use/en/acceptable-use).
+Bilocus does not collect or transmit any data: everything stays on your
+computer.
+
+## License
+
+- Blender add-on: [GPL-3.0-or-later](LICENSES/GPL-3.0-or-later.txt)
+- Revit add-in and everything else: [MIT](LICENSES/MIT.txt)
+
+Details in [LICENSE.txt](LICENSE.txt); third-party components in
+[THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
+
+Autodesk and Revit are registered trademarks or trademarks of Autodesk,
+Inc., and/or its subsidiaries and/or affiliates in the USA and/or other
+countries. Blender is a registered trademark of the Blender Foundation.
+
+Copyright (c) 2026 Roberto Dolfini.

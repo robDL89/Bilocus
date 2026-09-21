@@ -1,0 +1,147 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- The same two TFMs as the rest of the project: net48 for Revit 2024,
+         net8.0 for Revit 2025. The TCP server is production code on both. -->
+    <TargetFrameworks>net8.0;net48</TargetFrameworks>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AssemblyName>Bilocus.Revit.Net.Tests</AssemblyName>
+    <RootNamespace>Bilocus.Revit.Net.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The server sources are included as links, not through a
+         ProjectReference: Bilocus.Revit references the Revit API, which
+         cannot be loaded outside Revit.
+
+         The side effect is the real reason this is worth doing: these three
+         files are compiled WITHOUT any reference to the Revit API, so the
+         rule "the socket thread never touches the Revit API" no longer
+         depends on whoever reviews the code. If someone adds a Revit call
+         inside BridgeServer.cs, this project stops compiling. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Net\IEventRaiser.cs" Link="Net\IEventRaiser.cs" />
+    <Compile Include="..\..\src\Bilocus.Revit\Net\MessageQueue.cs" Link="Net\MessageQueue.cs" />
+    <Compile Include="..\..\src\Bilocus.Revit\Net\BridgeServer.cs" Link="Net\BridgeServer.cs" />
+
+    <!-- Same scheme for dispatch: MessageRouter holds all the logic that
+         decides what to do with each message, and must not touch the Revit
+         API. MessageHandler, which does touch it, stays out: it is the shell
+         that runs on the main thread and only calls the router. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Net\MessageRouter.cs" Link="Net\MessageRouter.cs" />
+
+    <!-- Same scheme for the preview: GeometryStore and StoredObject must
+         not touch the Revit API. Compiling them here, with no RevitAPI
+         available, makes the compiler enforce the constraint. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Preview\StoredObject.cs" Link="Preview\StoredObject.cs" />
+    <Compile Include="..\..\src\Bilocus.Revit\Preview\GeometryStore.cs" Link="Preview\GeometryStore.cs" />
+
+    <!-- Same scheme for the Phase A2 pull. ElementNaming is the pure part of
+         the naming and must be tested; TessellatedMesh is the result
+         container and must not know the Revit API, otherwise it could not
+         cross the boundary to MeshPayloadWriter. Compiling them here, where
+         RevitAPI does not exist, turns the constraint into a compile error
+         instead of a convention. ElementTessellator, which really touches
+         the Revit API, stays out on purpose. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Pull\ElementNaming.cs" Link="Pull\ElementNaming.cs" />
+    <Compile Include="..\..\src\Bilocus.Revit\Pull\TessellatedMesh.cs" Link="Pull\TessellatedMesh.cs" />
+
+    <!-- Task 3: the text summary of SendSelectionCommand is the only other
+         part of the command that does not touch the Revit API, for the same
+         reason as ElementNaming. SendSelectionCommand itself stays out: it is
+         the shell that touches uidoc.Selection and the Element, not testable
+         without Revit. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Pull\SendSelectionResult.cs" Link="Pull\SendSelectionResult.cs" />
+
+    <!-- Phase A3: ProxyNaming holds the identity of the marker (the GUID that
+         must never change again, the names Revit accepts only if they follow
+         precise rules) and the obj_id rules. No Revit API, for the same
+         reason as ElementNaming: compiled here, where RevitAPI does not
+         exist, the constraint becomes a compile error, and the constants
+         become verifiable by a test instead of by opening Revit.
+         ProxySchema and ProxyLineStyle, which really touch the API, stay out
+         on purpose. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Proxy\ProxyNaming.cs" Link="Proxy\ProxyNaming.cs" />
+
+    <!-- Task 3: reading the proxy_edges message and summarizing its outcome.
+         No Revit API on purpose, and that is the choice that matters in this
+         task: proxy_edges is the first message that writes to the document,
+         and writing requires a transaction, which requires the API. So the
+         router does not execute, it packages - and all the validation of the
+         message (consistent counts, finite coordinates, writable obj_id)
+         ends up here, where tests reach it without opening Revit.
+         ProxyBuilder, which opens the transaction, stays out. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Proxy\ProxyEdgeRequest.cs" Link="Proxy\ProxyEdgeRequest.cs" />
+    <Compile Include="..\..\src\Bilocus.Revit\Proxy\ProxyBuildResult.cs" Link="Proxy\ProxyBuildResult.cs" />
+
+    <!-- Task 5: the counts and TEXTS of the bulk removal. It is the part of
+         the whole command most worth testing: "Remove Proxy" is the only
+         wide-reaching destructive action of the bridge, and the number
+         written in the confirmation is the user's only defense against a
+         removal they did not want. That text is verified here by a test;
+         inline in the command it could only be verified by opening Revit and
+         agreeing to delete something. RemoveProxyCommand, which opens the
+         transaction and calls Document.Delete, stays out. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Proxy\ProxyRemovalResult.cs" Link="Proxy\ProxyRemovalResult.cs" />
+
+    <!-- Task 7: the counts and texts of the sketch plane cleanup. It is the
+         pure half of SketchPlaneCleaner, shared by the TWO paths that delete
+         proxy curves - explicit removal and replacement - and it is exactly
+         the piece that used to exist in a single copy, in the less used path.
+         SketchPlaneCleaner, which calls Document.Delete and
+         GetDependentElements, stays out: only Revit can decide whether a
+         plane can be deleted. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Proxy\SketchPlaneCleanupResult.cs" Link="Proxy\SketchPlaneCleanupResult.cs" />
+
+    <!-- Phase B, Task 2: the pure half of the bake. BakeMeshRequest is the
+         bake_mesh message already read and validated, BakeBatch the batch
+         that collects announced, arrived and missing objects, BakeResult the
+         counts that go back to Blender with bake_result and the text of the
+         Status button, BakeCategory the category name format. Same choice as
+         ProxyEdgeRequest, for the same reason: the bake writes to the
+         document, and everything that can be decided before the transaction
+         lives here, where tests reach it without opening Revit. BakeBuilder
+         and BakeRemover, which open the transactions and create the
+         DirectShapes, stay out: if someone puts the Revit API in one of these
+         four files, this project stops compiling. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Bake\BakeCategory.cs" Link="Bake\BakeCategory.cs" />
+    <Compile Include="..\..\src\Bilocus.Revit\Bake\BakeMeshRequest.cs" Link="Bake\BakeMeshRequest.cs" />
+    <Compile Include="..\..\src\Bilocus.Revit\Bake\BakeBatch.cs" Link="Bake\BakeBatch.cs" />
+    <Compile Include="..\..\src\Bilocus.Revit\Bake\BakeResult.cs" Link="Bake\BakeResult.cs" />
+
+    <!-- Phase B2, Task 1: the pure half of the family bake. BakeTarget is the
+         bake mode as it travels on the wire, FamilyNaming the BL_<name> that
+         Revit must accept. Same rule as the four files above: the
+         FamilyBaker that opens family documents and calls LoadFamily stays
+         out, and if someone puts the Revit API in one of these two files
+         this project stops compiling. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Bake\BakeTarget.cs" Link="Bake\BakeTarget.cs" />
+    <Compile Include="..\..\src\Bilocus.Revit\Bake\FamilyNaming.cs" Link="Bake\FamilyNaming.cs" />
+
+    <!-- After B2: the list of family documents opened by the bake, closed at
+         the end of the batch if a Close(false) did not go through. The real
+         calls (IsValidObject, Application.Documents, Close) are passed in by
+         FamilyBaker. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Bake\FamilyDocumentLeaks.cs" Link="Bake\FamilyDocumentLeaks.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.5.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <!-- System.Text.Json is not in the .NET Framework BCL: the package is
+         needed so that MessageRouter also compiles on the Revit 2024 TFM. -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Bilocus.Protocol\Bilocus.Protocol.csproj" />
+    <ProjectReference Include="..\..\src\Bilocus.Geometry\Bilocus.Geometry.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+</Project>
