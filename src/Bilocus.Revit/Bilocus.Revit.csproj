@@ -5,7 +5,13 @@
     <TargetFramework Condition="'$(RevitVersion)' &lt; '2025'">net48</TargetFramework>
     <AssemblyName>Bilocus.Revit</AssemblyName>
     <RootNamespace>Bilocus.Revit</RootNamespace>
+    <!-- WPF for the ribbon icons (ImageSource, BitmapImage). -->
+    <UseWPF>true</UseWPF>
   </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\*.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" />

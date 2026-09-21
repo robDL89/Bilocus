@@ -3,7 +3,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Autodesk.Revit.DB.ExternalService;
 using Autodesk.Revit.UI;
 using Bilocus.Revit.Net;
@@ -45,54 +48,62 @@ namespace Bilocus.Revit
                 // the tab already exists: normal case if another add-in created it
             }
 
-            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Diagnostics");
             string assemblyPath = Assembly.GetExecutingAssembly().Location;
 
-            PushButtonData data = new PushButtonData(
-                "BilocusPing",
-                "Ping",
-                assemblyPath,
-                "Bilocus.Revit.PingCommand");
-            data.ToolTip = "Check that the add-in is loaded";
-            panel.AddItem(data);
+            // Exchange with Blender: the two commands that act on the model.
+            RibbonPanel exchange = application.CreateRibbonPanel(TabName, "Exchange");
 
-            PushButtonData testMeshData = new PushButtonData(
-                "BilocusTestMesh",
-                "Test Mesh",
+            PushButtonData sendSelectionData = new PushButtonData(
+                "BilocusSendSelection",
+                "Send Selection" + Environment.NewLine + "to Blender",
                 assemblyPath,
-                "Bilocus.Revit.Preview.TestMeshCommand");
-            testMeshData.ToolTip =
-                "Injects a synthetic cube into the preview, without going through the network";
-            panel.AddItem(testMeshData);
+                "Bilocus.Revit.Pull.SendSelectionCommand");
+            sendSelectionData.ToolTip =
+                "Sends the selected Revit elements to Blender.";
+            sendSelectionData.LongDescription =
+                "The selection is tessellated and arrives in Blender in the FromRevit " +
+                "collection, openings included. Sending the same elements again updates " +
+                "them in place. Blender must be connected: press Connect in the Bilocus " +
+                "panel in Blender first.";
+            Decorate(sendSelectionData, "SendSelection");
+            exchange.AddItem(sendSelectionData);
+
+            // The mandatory other half of writing: the bridge leaves proxy lines
+            // in the document, and without this button the only way to remove
+            // them would be selecting them by hand in the model.
+            PushButtonData removeProxyData = new PushButtonData(
+                "BilocusRemoveProxy",
+                "Remove" + Environment.NewLine + "Proxy Lines",
+                assemblyPath,
+                "Bilocus.Revit.Proxy.RemoveProxyCommand");
+            removeProxyData.ToolTip =
+                "Deletes all proxy lines created by Bilocus in this document.";
+            removeProxyData.LongDescription =
+                "Proxy lines are the snappable model lines created from Blender edges " +
+                "with Create Proxy. The number of lines is shown before anything is " +
+                "deleted, and the operation can be undone with Ctrl+Z. Baked " +
+                "DirectShapes and families are not touched: remove them from Blender " +
+                "with Remove Bake.";
+            Decorate(removeProxyData, "RemoveProxy");
+            exchange.AddItem(removeProxyData);
+
+            // Connection state: the only diagnostic left for the user.
+            RibbonPanel connection = application.CreateRibbonPanel(TabName, "Connection");
 
             PushButtonData statusData = new PushButtonData(
                 "BilocusStatus",
                 "Status",
                 assemblyPath,
                 "Bilocus.Revit.StatusCommand");
-            statusData.ToolTip = "Shows the TCP server status and the last message received";
-            panel.AddItem(statusData);
-
-            PushButtonData sendSelectionData = new PushButtonData(
-                "BilocusSendSelection",
-                "Send Selection to Blender",
-                assemblyPath,
-                "Bilocus.Revit.Pull.SendSelectionCommand");
-            sendSelectionData.ToolTip =
-                "Tessellates the current selection and sends it to the connected Blender client";
-            panel.AddItem(sendSelectionData);
-
-            // The mandatory other half of writing: from this phase on the bridge
-            // leaves elements in the document, and without this button the only
-            // way to remove them would be selecting them by hand in the model.
-            PushButtonData removeProxyData = new PushButtonData(
-                "BilocusRemoveProxy",
-                "Remove Proxy",
-                assemblyPath,
-                "Bilocus.Revit.Proxy.RemoveProxyCommand");
-            removeProxyData.ToolTip =
-                "Deletes all lines created by Bilocus in this document, after confirmation";
-            panel.AddItem(removeProxyData);
+            statusData.ToolTip =
+                "Shows whether Bilocus is listening and whether Blender is connected.";
+            statusData.LongDescription =
+                "Reports the state of the local server, the last message received, " +
+                "the objects and triangles in the preview and what Bilocus created in " +
+                "this session (proxy lines, DirectShapes, families). If something " +
+                "does not work, start here.";
+            Decorate(statusData, "Status");
+            connection.AddItem(statusData);
 
             // The DC3D server registration is guarded: if an exception escapes
             // OnStartup, Revit disables the whole add-in and even the ribbon
@@ -161,6 +172,43 @@ namespace Bilocus.Revit
             }
 
             return Result.Succeeded;
+        }
+
+        // Help page opened with F1 on any Bilocus button.
+        public const string HelpUrl = "https://github.com/robDL89/Bilocus#readme";
+
+        // Icons are PNG files embedded in the assembly (Resources\<name>32.png
+        // and <name>16.png, drawn by tools/make_icons.py). A missing icon
+        // leaves the button without image instead of failing the startup.
+        private static void Decorate(PushButtonData data, string iconName)
+        {
+            data.LargeImage = LoadIcon(iconName + "32");
+            data.Image = LoadIcon(iconName + "16");
+            data.SetContextualHelp(new ContextualHelp(ContextualHelpType.Url, HelpUrl));
+        }
+
+        private static ImageSource LoadIcon(string name)
+        {
+            try
+            {
+                Stream stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(
+                    "Bilocus.Revit.Resources." + name + ".png");
+                if (stream == null) { return null; }
+                using (stream)
+                {
+                    BitmapImage image = new BitmapImage();
+                    image.BeginInit();
+                    image.StreamSource = stream;
+                    image.CacheOption = BitmapCacheOption.OnLoad;
+                    image.EndInit();
+                    image.Freeze();
+                    return image;
+                }
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         public Result OnShutdown(UIControlledApplication application)

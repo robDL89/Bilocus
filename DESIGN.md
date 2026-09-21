@@ -37,7 +37,7 @@ BLENDER (process A)                     REVIT (process B)
 ----------------------------            ---------------------------------
 Python addon                            C# add-in (IExternalApplication)
 
-Panel N-sidebar "Bilocus"           Ribbon tab + DockablePane (status)
+Panel N-sidebar "Bilocus"               Ribbon tab "Bilocus"
 Collection "ToRevit"                    TcpListener 127.0.0.1  [bg thread]
 handler depsgraph_update_post                    |
   -> detects is_updated_transform                v
@@ -658,7 +658,10 @@ parsed header's fields, not on the raw bytes.
 ### 6.2 Revit side - C# add-in
 
 - `App` - `IExternalApplication`. Starts the listener, registers the DC3D
-  server, builds the ribbon and the dockable pane.
+  server, builds the ribbon: panel Exchange (Send Selection to Blender,
+  Remove Proxy Lines) and panel Connection (Status). Icons are PNGs
+  embedded in the assembly, drawn by `tools/make_icons.py`; F1 on a
+  button opens the README.
 - `BridgeServer` - background-thread TCP listener. Frame parsing,
   queuing, no calls to the Revit API. The rule is not left to discipline:
   the file has no `using Autodesk.*` at all and the `Bilocus.Revit.Net.Tests`
