@@ -11,13 +11,15 @@ verified on real Revit and Blender processes.
 See in Revit, in real time and without creating elements in the document,
 the geometry being modeled in Blender. As a second step, bring selected
 portions of the Revit model into Blender as reference context.
+Finally, bring Blender geometry inside Revit as DirectShape or Family with
+proper category.
 
 Functional equivalent of the Grasshopper preview in Rhino.Inside.Revit, but
 with a geometry engine that lives in a separate process.
 
 ---
 
-## 2. Why it cannot be done like Rhino.Inside
+## 2. How we preview ? Rhino.Inside Example
 
 Rhino.Inside loads RhinoCommon (a .NET library) in the same process as
 Revit. Blender is a monolithic C/C++ executable with its own event loop,
