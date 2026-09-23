@@ -6,3 +6,7 @@ __pycache__/
 .vs/
 *.user
 dist/
+
+# private notes (separate private repo) and the local Claude Code entry point
+_notes/
+CLAUDE.md
