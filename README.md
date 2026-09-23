@@ -12,21 +12,6 @@ Free and open source. Independent project, not affiliated with nor endorsed
 by Autodesk, the Blender Foundation or Anthropic.
 
 
-## Why Bilocus?
-
-As an architect, I've always found myself caught between two worlds: Revit and Blender. On one side there's Blender, an extremely versatile and malleable software where you can create whatever comes to mind using geometry nodes, sculpting, and precise editing tools. On the other side, Revit, parametric, strict, and precise, but inherently limited when it comes to "freeform" exploration.
-
-I've been creating in Blender since version 2.46, long before becoming an architect. Over the years, it became my creative canvas and primary playground. Revit came later in 2017 as I was finishing university, and ever since, my dream was to connect the two and get the best of both worlds.
-
-For years, my workflow meant constantly jumping back and forth with DXF exports from Blender and FBX imports into Revit... (sometimes taking advantage of Rhino, Grasshopper, Rhino inside, another software just to connect Blender and Revit).
-But this workflow was slow and clunky. Half the time, waiting to re-import models just to check a detail led to discovering missing faces, flipped normals, import errors.
-
-I needed something lightweight, fast, and reliable: a tool to preview geometry from Blender inside Revit in real time, and easily extract Revit geometry for faster prototyping and rendering.
-
-Bilocus was built to solve this exact pain point.
-
-Thanks to Claude Code, I finally had the opportunity to build this workflow by designing, prototyping, and testing an open-source live channel to bridge the gap between Blender and Revit effortlessly.
-
 ## What it does
 
 - **Live preview, Blender -> Revit.** Put objects in the Blender collection
@@ -48,6 +33,21 @@ Thanks to Claude Code, I finally had the opportunity to build this workflow by d
   created.
 
 Reference measurement: 385 objects and 1,042,674 triangles synced in 2.5 s.
+
+## Why Bilocus?
+
+As an architect, I've always found myself caught between two worlds: Revit and Blender. On one side there's Blender, an extremely versatile and malleable tool where you can create whatever comes to mind using geometry nodes, sculpting, and precise editing tools. On the other side there's Revit: parametric, strict, and precise, but inherently limited when it comes to "freeform" exploration.
+
+I've been creating in Blender since version 2.46, long before becoming an architect. Over the years, it became my creative canvas and primary playground. Revit came later, in 2017, as I was finishing university, and ever since, my dream has been to connect the two and get the best of both worlds.
+
+For years, my workflow meant constantly jumping back and forth: DXF exports from Blender, FBX imports into Revit, and sometimes a detour through Rhino, Grasshopper and Rhino.Inside, one more program just to connect the other two.
+But this workflow was slow and clunky. Half the time I would wait for a re-import just to check a detail, only to discover missing faces, flipped normals, or import errors.
+
+I needed something lightweight, fast, and reliable: a tool to preview geometry from Blender inside Revit in real time, and easily extract Revit geometry for faster prototyping and rendering.
+
+Bilocus was built to solve this exact pain point.
+
+Thanks to Claude Code, I finally had the opportunity to build this workflow by designing, prototyping, and testing an open-source live channel to bridge the gap between Blender and Revit.
 
 ## Requirements
 
