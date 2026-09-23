@@ -9,8 +9,8 @@ using Xunit;
 namespace Bilocus.Geometry.Tests
 {
     // The level on which to place a bridge family instance: the closest one
-    // BELOW the object's origin. Revit honors the
-    // absolute Z by computing the offset, so a wrong level does not move the
+    // BELOW the object's origin. The instance is moved onto the object's
+    // absolute origin after creation, so a wrong level does not move the
     // instance: it puts it on a level the user does not expect, and they
     // only notice when they delete or move that level.
     public class LevelPickerTests

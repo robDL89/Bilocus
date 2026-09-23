@@ -1124,18 +1124,20 @@ namespace Bilocus.Revit.Bake
                     _project.Regenerate();
                 }
 
-                // Absolute Z: Revit computes the offset from the level
-                // (verified in testing).
                 XYZ origin = ToFeet(placement.OriginMeters);
                 FamilyInstance instance = _project.Create.NewFamilyInstance(
                     origin, symbol, level, StructuralType.NonStructural);
                 if (instance == null) { return "Revit did not create the instance of family " + family.Name; }
 
-                if (Math.Abs(placement.AngleRadians) > AngleToleranceRadians)
-                {
-                    ElementTransformUtils.RotateElement(
-                        _project, instance.Id, Line.CreateBound(origin, origin + XYZ.BasisZ), placement.AngleRadians);
-                }
+                // The Z of the point is NOT reliably absolute: on a level
+                // that is not at elevation 0 Revit took it as the offset
+                // from the level, and the instance landed higher or lower
+                // by the level's elevation. So the instance is brought onto
+                // the object's origin and rotation measuring where Revit
+                // actually put it, as the re-bake already does.
+                _project.Regenerate();
+                string moveRefusal = MoveInstance(instance.Id, placement);
+                if (moveRefusal != null) { return moveRefusal; }
 
                 ProxySchema.Mark(instance, objectId);
                 return null;

@@ -51,8 +51,8 @@ namespace Bilocus.Geometry
         public bool FlipWinding { get; private set; }
 
         // Translation of the matrix (elements 3, 7, 11), meters. The
-        // instance's insertion point, absolute Z included: Revit computes
-        // the offset from the level. A fresh copy on every read, because it
+        // instance's insertion point, absolute Z included: FamilyBaker moves
+        // the instance onto it after creation. A fresh copy on every read, because it
         // is an array.
         public double[] OriginMeters
         {

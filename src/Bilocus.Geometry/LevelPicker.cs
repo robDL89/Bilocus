@@ -9,9 +9,10 @@ namespace Bilocus.Geometry
     // The level on which to place a bridge family instance: the closest one
     // below the object's origin.
     //
-    // The instance's real elevation is decided by the absolute Z passed to
-    // NewFamilyInstance, with the offset computed by Revit (verified in
-    // Revit). The level, though, is the one the instance stays hosted on:
+    // The instance's real elevation is the object's origin: FamilyBaker
+    // moves the instance there after creating it, and the offset from the
+    // level follows. The level, though, is the one the instance stays
+    // hosted on:
     // if the user moves Level 1, the furniture on Level 1 must follow it,
     // not stay attached to the Ground Floor with a three-meter offset.
     //
