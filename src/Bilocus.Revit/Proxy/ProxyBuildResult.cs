@@ -33,7 +33,7 @@ namespace Bilocus.Revit.Proxy
         public int CreatedArcCount;
 
         // Proxies with the same obj_id found in the document and removed
-        // before recreating (decision 3 of the plan: resending replaces).
+        // before recreating (resending replaces).
         public int ReplacedCount;
 
         // Elements actually removed from the document during replacement: the
@@ -85,8 +85,8 @@ namespace Bilocus.Revit.Proxy
         //
         // The expected number is 2: one ModelCurve and one SketchPlane per
         // edge. If it comes out under 2, Revit reused some planes; if it comes
-        // out over, it is creating extra ones on its own and Task 6 needs to
-        // know.
+        // out over, it is creating extra ones on its own, and that
+        // must be known.
         public double ElementsPerEdge
         {
             get

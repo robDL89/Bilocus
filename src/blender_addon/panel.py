@@ -384,9 +384,8 @@ class BILOCUS_PT_panel(bpy.types.Panel):
         if hasattr(context.scene, bake.TOGETHER_PROPERTY):
             box.prop(context.scene, bake.TOGETHER_PROPERTY)
 
-        removable, _removable_ids = bake.remove_targets(context)
         row = box.row()
-        row.enabled = client.CLIENT.running and bool(removable)
+        row.enabled = client.CLIENT.running and bake.has_remove_candidates(context)
         row.operator("bilocus.remove_bake", icon='TRASH')
         box.label(text=bake.LAST_BAKE["message"])
 

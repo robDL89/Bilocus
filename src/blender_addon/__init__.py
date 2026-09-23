@@ -30,6 +30,7 @@ import bridge_collection as coll
 import bridge_import as imp
 import bridge_mesh as mesh
 import bridge_proxy as proxy
+import bridge_receive as receive
 import bridge_sync as sync
 import panel
 
@@ -83,7 +84,7 @@ def _on_depsgraph_update(scene, depsgraph):
 
     for update in depsgraph.updates:
         # is_updated_geometry is IGNORED on purpose: geometry is manual,
-        # that is decision 5 of CLAUDE.md. Anyone passing through here to
+        # sent only by the Sync button. Anyone passing through here to
         # "improve" the addon by adding auto-sync of geometry would flood
         # the socket with megabytes on every sculpting stroke.
         if not update.is_updated_transform:
@@ -153,8 +154,17 @@ def _handle_message(header, payload, now):
     kind = header.get("type")
 
     if kind == "hello_ack":
-        client.CLIENT.status = "handshake ok, Revit {}".format(
-            header.get("revit_version", "?"))
+        problem = receive.check_hello_ack(header)
+        if problem is not None:
+            # talking on would only produce rejected messages: better to
+            # stop here with the reason on the panel
+            client.CLIENT.disconnect()
+            client.CLIENT.status = problem
+            _log(problem)
+        else:
+            client.CLIENT.status = "handshake ok, Revit {}".format(
+                header.get("revit_version", "?"))
+        _tag_redraw()
 
     elif kind == "error":
         # a CONTENT error from Revit's router: the connection is alive, but
@@ -162,6 +172,7 @@ def _handle_message(header, payload, now):
         # see it would be the Status button inside Revit.
         client.CLIENT.status = "Revit rejected it: {}".format(
             header.get("message", "?"))
+        _log(client.CLIENT.status)
 
     elif kind == "proxy_result":
         # The only message that says how a WRITE into the Revit document
@@ -208,7 +219,6 @@ def _drain_incoming():
     # runs on the main thread: bpy is usable here
     while not client.CLIENT.incoming.empty():
         header, payload = client.CLIENT.incoming.get()
-        _log("received: {} payload {} bytes".format(header, len(payload)))
         try:
             _handle_message(header, payload, time.time())
         except Exception as error:

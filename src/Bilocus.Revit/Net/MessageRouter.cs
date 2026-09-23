@@ -85,7 +85,7 @@ namespace Bilocus.Revit.Net
         public string LastContentError = "";
         public int ContentErrorCount;
 
-        // ---- bake state, Phase B plan ----
+        // ---- bake state ----
         //
         // bake_begin / bake_mesh* / bake_end are a batch: objects are
         // collected into _openBakeBatch as they arrive, and only bake_end
@@ -157,6 +157,7 @@ namespace Bilocus.Revit.Net
                 switch (type)
                 {
                     case "hello":
+                        CheckProtocolVersion(root);
                         Reply(send, BuildHelloAck(host));
                         break;
 
@@ -217,6 +218,22 @@ namespace Bilocus.Revit.Net
                         // is the fastest way to build an infinite ping-pong.
                         break;
                 }
+            }
+        }
+
+        // Blender add-on and Revit add-in from different releases: refused
+        // at the handshake, where the reason can still be stated plainly.
+        // Absent is accepted: the add-on always sends it, only a hand-made
+        // client leaves it out.
+        private static void CheckProtocolVersion(JsonElement root)
+        {
+            int version = OptionalInt(root, "protocol_version", BridgeConstants.ProtocolVersion);
+            if (version != BridgeConstants.ProtocolVersion)
+            {
+                throw new ContentException(string.Format(
+                    "protocol version mismatch: the Blender add-on speaks {0}, this Revit add-in speaks {1}. "
+                    + "Install the same Bilocus release on both sides",
+                    version, BridgeConstants.ProtocolVersion));
             }
         }
 
@@ -522,7 +539,7 @@ namespace Bilocus.Revit.Net
 
         // ---- Revit -> Blender, DESIGN.md 5.4 ----
         //
-        // The three selection pull messages (Phase A2, Task 3). Public and
+        // The three selection pull messages (Phase A2). Public and
         // static because the caller is SendSelectionCommand, which lives in
         // Bilocus.Revit.Pull and touches the Revit API: the headers stay
         // here, where hello_ack and error are already built, so that
@@ -655,8 +672,7 @@ namespace Bilocus.Revit.Net
             }
         }
 
-        // bake_result: how a bake or a bake removal went (Phase B plan,
-        // "Wire contract").
+        // bake_result: how a bake or a bake removal went (DESIGN.md 5.4).
         //
         // Same reason as proxy_result: the bake runs on an ExternalEvent
         // triggered by the network, with no TaskDialog, and whoever pressed

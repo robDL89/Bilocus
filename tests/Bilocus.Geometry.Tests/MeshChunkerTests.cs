@@ -72,7 +72,7 @@ namespace Bilocus.Geometry.Tests
         // The limit is NOT a choice of ours: it is DirectContext3D's own
         // index buffer limit, measured in Phase 0
         // (IndexTriangle.GetSizeInShortInts() is 3, i.e. two bytes per
-        // index). See docs/dc3d-buffer-limit.md.
+        // index). See DESIGN.md 8, Risks.
         //
         // This test uses the literal 65536 on purpose. Every other test in
         // here compares against MeshChunker.MaxVerticesPerChunk, so under
@@ -270,15 +270,13 @@ namespace Bilocus.Geometry.Tests
             Assert.Equal(10000, chunks[0].TriangleCount);
         }
 
-        // Additional test, not present in the original plan.
-        //
-        // Question raised during self-review: does the count of new
+        // Does the count of new
         // vertices per triangle (in MeshChunker.Split) correctly handle
         // degenerate triangles, i.e. ones with two or three indices equal to
         // each other within the SAME triangle? A count that undershot would
         // leave a chunk above the 65536-vertex limit without raising any
         // exception, exactly the kind of silent bug described in
-        // docs/dc3d-buffer-limit.md.
+        // DESIGN.md 8, Risks.
         //
         // This test builds a mesh where EVERY triangle is degenerate in a
         // different way (two equal indices, in every position combination,

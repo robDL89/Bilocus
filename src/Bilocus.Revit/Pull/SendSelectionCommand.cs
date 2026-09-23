@@ -21,12 +21,6 @@ namespace Bilocus.Revit.Pull
     // "Send selection" button: reads uidoc.Selection, tessellates every
     // element and sends revit_batch_begin / revit_geometry / revit_batch_end
     // (DESIGN.md 5.4) to the connected client.
-    //
-    // Note for manual verification: at the end of Task 3 the Blender side
-    // still cannot read these messages (it arrives with Tasks 4 and 5), so
-    // pressing the button in Revit sends them and Blender ignores them. This
-    // is expected: here it can already be verified that the command does not
-    // blow up, that it counts correctly and that it reports timing.
     [Transaction(TransactionMode.Manual)]
     public sealed class SendSelectionCommand : IExternalCommand
     {
@@ -80,7 +74,7 @@ namespace Bilocus.Revit.Pull
                 {
                     // Before tessellation, which is the expensive part: a
                     // bridge bake must not come back to Blender (feedback
-                    // loop, Phase B plan).
+                    // loop).
                     if (IsBridgeBake(element))
                     {
                         result.SkippedBridgeCount++;
@@ -129,7 +123,7 @@ namespace Bilocus.Revit.Pull
                 // Nothing to send: no batch is opened, for the same reason an
                 // empty selection does not open one. SendMs stays 0, which is
                 // honest: no time was spent on the network.
-                TaskDialog.Show("Bilocus", BuildDialogText(result));
+                TaskDialog.Show("Bilocus", result.BuildSummaryText());
                 return Result.Succeeded;
             }
 
@@ -137,7 +131,7 @@ namespace Bilocus.Revit.Pull
             SendBatch(server, ready, result);
             result.SendMs = ElapsedMs(sendStart);
 
-            TaskDialog.Show("Bilocus", BuildDialogText(result));
+            TaskDialog.Show("Bilocus", result.BuildSummaryText());
             return Result.Succeeded;
         }
 
@@ -211,13 +205,6 @@ namespace Bilocus.Revit.Pull
                         + "; revit_batch_end also failed to go out, the batch stays open on the Blender side";
                 }
             }
-        }
-
-        private static string BuildDialogText(SendSelectionResult result)
-        {
-            return result.BuildSummaryText()
-                + "\n\nNote: the Blender side cannot receive these messages yet"
-                + " (it arrives with the next tasks). This send does not produce anything in Blender yet.";
         }
 
         // A DirectShape with the bridge's mark: geometry that comes from

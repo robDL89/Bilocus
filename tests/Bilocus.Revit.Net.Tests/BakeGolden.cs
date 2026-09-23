@@ -11,7 +11,7 @@ namespace Bilocus.Revit.Net.Tests
     // valid object" for the batch and dispatch tests.
     internal static class BakeGolden
     {
-        // Copied verbatim from the Phase B plan, "Wire contract".
+        // The golden vector of the bake_mesh wire contract (DESIGN.md 5.3).
         public const string Hex =
             "0000000000000000000000000000803f00000000000000000000803f0000803f"
             + "00000000000000000000803f000000000000003f0000003f0000803f04000000"
@@ -44,8 +44,8 @@ namespace Bilocus.Revit.Net.Tests
                 5, 2, 7, 3, Payload());
         }
 
-        // With the spacing of json.dumps, like the header example in the
-        // plan: it is what really arrives from Blender.
+        // With the spacing of json.dumps: it is what really arrives from
+        // Blender.
         public static string MeshHeader(string objectId)
         {
             return MeshHeader(objectId, BakeCategory.DefaultCategory, MatrixJson);

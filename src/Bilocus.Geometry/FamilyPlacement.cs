@@ -6,7 +6,7 @@ using System;
 namespace Bilocus.Geometry
 {
     // The matrix of a Blender object split between the family instance and
-    // the family geometry (Phase B2, decision 4).
+    // the family geometry.
     //
     // A level-hosted instance can do two things: sit at a point and rotate
     // in plan. Everything else in the matrix (tilts about X and Y, scale,

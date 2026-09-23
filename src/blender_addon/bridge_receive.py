@@ -19,7 +19,24 @@
 import math
 import struct
 
-from bridge_protocol import BridgeMessageError
+from bridge_protocol import PROTOCOL_VERSION, BridgeMessageError
+
+
+def check_hello_ack(header):
+    """None if the Revit add-in speaks our protocol, otherwise the reason.
+
+    A Revit add-in from another release would not fail loudly: its messages
+    would be rejected one by one as content errors, which reads as a bug
+    instead of as "update one side". A missing or non-integer version is a
+    mismatch too: every Revit add-in writes it."""
+    version = header.get("protocol_version")
+    if isinstance(version, bool) or not isinstance(version, int):
+        version = "?"
+    if version == PROTOCOL_VERSION:
+        return None
+    return ("protocol version mismatch: the Revit add-in speaks {}, this Blender "
+            "add-on speaks {}. Install the same Bilocus release on both sides".format(
+                version, PROTOCOL_VERSION))
 
 
 def unpack_mesh_payload(payload, vertex_count, triangle_count):

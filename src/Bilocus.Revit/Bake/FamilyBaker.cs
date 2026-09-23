@@ -22,7 +22,7 @@ namespace Bilocus.Revit.Bake
     // inside a single project transaction. A family is not: the geometry
     // goes into ANOTHER document (the family document), and passing it to
     // the project is LoadFamily, which wants the project WITHOUT open
-    // transactions (docs/family-bake-findings.md, finding 6; RevitAPI.xml
+    // transactions (verified in testing; RevitAPI.xml
     // also says so for EditFamily). So for each object:
     //
     //   creation:   NewFamilyDocument -> [T family: category, FreeFormElement,
@@ -56,11 +56,19 @@ namespace Bilocus.Revit.Bake
         public const string CleanupTransactionPrefix = "Bilocus: family cleanup ";
         public const string FamilyTransactionName = "Bilocus: geometry";
 
-        // Decision 1: English\Metric Generic Model.rft, no search in other
-        // languages. Testing found an installation with the default library
-        // set to Italian and the English folder present anyway.
-        public const string TemplateLanguageFolder = "English";
-        public const string TemplateFileName = "Metric Generic Model.rft";
+        // The Generic Model templates tried, in order: the metric one of the
+        // English library, then the imperial one that US installations ship
+        // (English_I is its name in older content packs). No search in other
+        // languages: testing found an installation with the default library
+        // set to Italian and the English folder present anyway. The units of
+        // the template only change how the family editor displays
+        // dimensions: the geometry is written in internal units either way.
+        private static readonly string[][] TemplateCandidates =
+        {
+            new[] { "English", "Metric Generic Model.rft" },
+            new[] { "English-Imperial", "Generic Model.rft" },
+            new[] { "English_I", "Generic Model.rft" },
+        };
 
         public const string OpenMeshRefusal =
             "open mesh: check 'accept open solid' or use Bake DirectShape";
@@ -85,20 +93,26 @@ namespace Bilocus.Revit.Bake
             get { return _groupAllowsFamilyLoad; }
         }
 
-        // The template path for this version of Revit. Public because the
-        // error message cites it, and whoever reads the Status must be able
-        // to compare it with the disk.
-        public static string TemplatePath(Application application)
+        // The candidate template paths for this version of Revit, in the
+        // order they are tried. Public because the error message cites them,
+        // and whoever reads the Status must be able to compare them with the
+        // disk.
+        public static List<string> TemplatePaths(Application application)
         {
             if (application == null) { throw new ArgumentNullException("application"); }
 
-            return Path.Combine(
+            string root = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
                 "Autodesk",
                 "RVT " + application.VersionNumber,
-                "Family Templates",
-                TemplateLanguageFolder,
-                TemplateFileName);
+                "Family Templates");
+
+            List<string> paths = new List<string>();
+            foreach (string[] candidate in TemplateCandidates)
+            {
+                paths.Add(Path.Combine(root, candidate[0], candidate[1]));
+            }
+            return paths;
         }
 
         public static BakeResult Build(Document project, BakeBatch batch, double planarToleranceMeters)
@@ -130,15 +144,16 @@ namespace Bilocus.Revit.Bake
                     batch.AnnouncedIds.Count)), start);
             }
 
-            // The template is missing: the whole batch fails, with the path.
+            // No template: the whole batch fails, with the paths searched.
             // Every object would fail the same way, and fifty identical
             // lines say less than one.
-            string template = TemplatePath(project.Application);
-            if (!File.Exists(template))
+            List<string> candidates = TemplatePaths(project.Application);
+            string template = candidates.Find(File.Exists);
+            if (template == null)
             {
                 return Finish(BakeResult.Failed(batch,
-                    "family template not found: " + template
-                    + " (the English Revit template library is required)"), start);
+                    "no Generic Model family template found, searched: " + string.Join("; ", candidates)
+                    + " (install the English or English-Imperial Revit family template library)"), start);
             }
 
             // Shared between the run with the group and its possible
@@ -602,7 +617,7 @@ namespace Bilocus.Revit.Bake
                 TessellatedShapeBuilderResult built = builder.GetBuildResult();
                 keepAlive.Add(built);
 
-                // Decision 6: Solid always, Sheet (open shell) only with the
+                // Solid always, Sheet (open shell) only with the
                 // checkbox, Mesh/Mixed/Nothing never: they do not give a
                 // Solid, and without a Solid there is no FreeFormElement.
                 TessellatedShapeBuilderOutcome outcome = built.Outcome;
@@ -718,7 +733,7 @@ namespace Bilocus.Revit.Bake
                     string instanceRefusal = PlaceInstance(loaded, level, placement, host.ObjectId);
                     if (instanceRefusal != null) { return instanceRefusal; }
 
-                    // Decision 7: what the same objects had in the other
+                    // What the same objects had in the other
                     // mode goes away in the same transaction as the instance.
                     switched = DeleteReplaced(host.ObjectId, built);
                     return null;
@@ -737,7 +752,7 @@ namespace Bilocus.Revit.Bake
 
             // A marked family: EditFamily, the bridge's FreeFormElements
             // aligned to the members (the user's voids and other elements
-            // stay, finding 10), reloaded; then the instance.
+            // stay), reloaded; then the instance.
             private ObjectWrite UpdateFamily(BakeMeshRequest host, List<MemberSolid> built,
                 HashSet<string> requested, ElementId familyId, Category category, FamilyPlacement placement)
             {
@@ -753,7 +768,7 @@ namespace Bilocus.Revit.Bake
                     return ObjectWrite.Refused("the family " + familyName + " is not editable by API");
                 }
 
-                // Plan decision, point 8: family open in the editor. Checked
+                // Family open in the editor: checked
                 // BEFORE calling EditFamily, because EditFamily's exception
                 // for "already being edited" is the same class as the one
                 // for "group open": without this check an open editor would
@@ -857,7 +872,7 @@ namespace Bilocus.Revit.Bake
                     }
                     else
                     {
-                        // Decision 8: copies made in Revit carry the mark,
+                        // Copies made in Revit carry the mark,
                         // and it is not known which one is "the Blender
                         // one". Geometry updated on all of them (it is the
                         // family), no move.
@@ -903,7 +918,7 @@ namespace Bilocus.Revit.Bake
             }
 
             // What the members had before, now replaced by this family:
-            // DirectShapes of every member (decision 7) and the families of
+            // DirectShapes of every member and the families of
             // their own of the members other than the host (they now live in
             // the host's family). Inside an already open project transaction.
             private int DeleteReplaced(string hostId, List<MemberSolid> built)
@@ -1074,10 +1089,10 @@ namespace Bilocus.Revit.Bake
             private const string NoLevelRefusal =
                 "no level in the project: a level is needed to place the instance";
 
-            // Decision 4: the closest level below the origin. Elevations as
+            // The closest level below the origin. Elevations as
             // ProjectElevation, i.e. relative to the project origin and not
             // the shared point: it is the coordinate system that arrives
-            // from the wire (Revit's internal origin, CLAUDE.md).
+            // from the wire (Revit's internal origin, see DESIGN.md).
             private Level PickLevel(FamilyPlacement placement)
             {
                 List<Level> levels = new List<Level>();
@@ -1110,7 +1125,7 @@ namespace Bilocus.Revit.Bake
                 }
 
                 // Absolute Z: Revit computes the offset from the level
-                // (testing, finding 8).
+                // (verified in testing).
                 XYZ origin = ToFeet(placement.OriginMeters);
                 FamilyInstance instance = _project.Create.NewFamilyInstance(
                     origin, symbol, level, StructuralType.NonStructural);
@@ -1183,7 +1198,7 @@ namespace Bilocus.Revit.Bake
                 return found;
             }
 
-            // Decision 3: rename to BL_<new name> if different and free. A
+            // Rename to BL_<new name> if different and free. A
             // name taken by another family is NOT resolved with a suffix:
             // the bridge's family already has a valid name, and changing it
             // to BL_x_2 on every bake would be worse. It is stated in the

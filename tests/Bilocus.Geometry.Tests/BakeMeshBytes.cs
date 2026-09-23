@@ -17,7 +17,7 @@ namespace Bilocus.Geometry.Tests
     // tests for the violated rules could pass for the wrong reason.
     internal static class BakeMeshBytes
     {
-        // Copied literally from the Phase B plan, "Wire contract". The
+        // The golden vector of the bake_mesh wire contract. The
         // Python suite asserts the same 144 bytes: if either side changes
         // the block order or the endianness, at least one of the two suites
         // turns red.

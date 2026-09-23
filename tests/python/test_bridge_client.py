@@ -205,6 +205,45 @@ def test_reconnect_after_disconnect():
         server.close()
 
 
+def test_late_old_read_thread_does_not_kill_new_connection():
+    # Disconnect and an immediate Connect: the old read thread can wake up
+    # from its closed socket AFTER the new connection is up. Simulated
+    # deterministically by running the old loop by hand once the new
+    # connection exists: it must leave the new one alone.
+    server = FakeServer()
+    client_obj = bridge_client.BridgeClient()
+    try:
+        client_obj.connect(host=protocol.DEFAULT_HOST, port=server.port)
+        conn1 = server.accept_one()
+        read_one_message(conn1)  # hello
+        old_socket = client_obj.socket
+        old_thread = client_obj.thread
+
+        client_obj.disconnect()
+        old_thread.join(timeout=5.0)
+
+        client_obj.connect(host=protocol.DEFAULT_HOST, port=server.port)
+        conn2 = server.accept_one()
+        read_one_message(conn2)  # hello
+        new_socket = client_obj.socket
+        status = client_obj.status
+
+        client_obj._read_loop(old_socket)
+
+        assert client_obj.running is True
+        assert client_obj.socket is new_socket
+        assert new_socket.fileno() != -1
+        assert client_obj.status == status
+
+        # and the new connection still works both ways
+        assert client_obj.send({"type": "sync_end"}) is True
+        header, _ = read_one_message(conn2)
+        assert header["type"] == "sync_end"
+    finally:
+        client_obj.disconnect()
+        server.close()
+
+
 def test_malformed_json_is_recoverable_stream_stays_aligned():
     server = FakeServer()
     client_obj = bridge_client.BridgeClient()

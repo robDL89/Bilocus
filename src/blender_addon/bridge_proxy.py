@@ -7,8 +7,8 @@
 # dedup, packing, header, point transform) and is covered by tests.
 #
 # Unlike Sync, the source is NOT the ToRevit collection but the ACTIVE
-# OBJECT and its edge selection. This is not an exception to decision 4 of
-# CLAUDE.md: that one concerns the preview, i.e. what is seen. Here we
+# OBJECT and its edge selection. This is not an exception to the rule in
+# bridge_collection.py: that one concerns the preview, i.e. what is seen. Here we
 # write into the Revit document, and selection is exactly the way to say
 # "these three edges, not the whole mesh".
 

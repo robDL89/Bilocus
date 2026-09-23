@@ -11,7 +11,7 @@ namespace Bilocus.Geometry
     // The limit was MEASURED, not assumed: Revit's index buffers use 16-bit
     // indices, so a buffer addresses at most 65536 vertices. Exceeding it
     // does NOT raise exceptions: Revit truncates silently and draws a wrong
-    // shape. See docs/dc3d-buffer-limit.md.
+    // shape. See DESIGN.md 8, Risks.
     // That is why validation is done here, by counting, and not left to a
     // try/catch around FlushBuffer.
     //

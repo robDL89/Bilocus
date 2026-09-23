@@ -33,26 +33,35 @@ class BridgeClient(object):
         host = host if host else protocol.DEFAULT_HOST
         port = port if port else protocol.DEFAULT_PORT
 
+        sock = None
         try:
-            self.socket = socket.create_connection((host, port), timeout=5.0)
-            self.socket.settimeout(None)
-            # same reason as the NoDelay on the Revit side, see Task 7. If
+            sock = socket.create_connection((host, port), timeout=5.0)
+            sock.settimeout(None)
+            # same reason as the NoDelay on the Revit side (BridgeServer). If
             # anything it matters more here: the 84-byte transform frames at
             # 30 Hz start from THIS side, and it is on this socket that
             # Nagle plus delayed ACK would do visible damage.
-            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         except Exception as error:
             # any trouble at connect time (refused, timeout, host not
             # resolvable): this is not one of the classified outcomes of the
             # receive loop, it is just "we couldn't"
             self.status = "connection failed: {}".format(error)
+            if sock is not None:
+                try:
+                    sock.close()
+                except Exception:
+                    pass
             self.socket = None
             return
 
+        self.socket = sock
         self.running = True
         self.status = "connected to {}:{}".format(host, port)
 
-        self.thread = threading.Thread(target=self._read_loop)
+        # The thread gets ITS socket: see _owns for why it must not read
+        # self.socket instead.
+        self.thread = threading.Thread(target=self._read_loop, args=(sock,))
         self.thread.daemon = True
         self.thread.start()
 
@@ -65,29 +74,47 @@ class BridgeClient(object):
         self._force_close()
         self.status = "disconnected"
 
-    def _force_close(self):
+    def _owns(self, sock):
+        """True while `sock` is still THE connection of this client.
+
+        A read thread only touches the shared state (status, running,
+        socket) while this holds. After Disconnect and an immediate
+        Connect, the old thread wakes up late from its closed socket: if it
+        looked at self.running it would see the NEW connection's True, mark
+        it dead and close the new socket, and the bridge would drop without
+        anyone having asked."""
+        return self.running and self.socket is sock
+
+    def _force_close(self, sock=None):
         # does not touch self.status: the reason for closing depends on the
         # caller (voluntary disconnect, or a write interrupted mid-frame in
         # send), so the caller writes the status
-        if self.socket is not None:
-            try:
-                # shutdown before close: it is what cleanly unblocks a recv()
-                # blocked on the read thread on POSIX. On Windows the blocked
-                # thread gets an OSError regardless (see the comment in the
-                # "except OSError" branch of _read_loop), but shutdown is
-                # still correct: it is the standard way to signal closure to
-                # the TCP peer
-                self.socket.shutdown(socket.SHUT_RDWR)
-            except Exception:
-                pass
-            try:
-                self.socket.close()
-            except Exception:
-                pass
+        if sock is None:
+            sock = self.socket
+        if sock is None:
+            return
+        try:
+            # shutdown before close: it is what cleanly unblocks a recv()
+            # blocked on the read thread on POSIX. On Windows the blocked
+            # thread gets an OSError regardless (see the comment in the
+            # "except OSError" branch of _read_loop), but shutdown is still
+            # correct: it is the standard way to signal closure to the TCP
+            # peer
+            sock.shutdown(socket.SHUT_RDWR)
+        except Exception:
+            pass
+        try:
+            sock.close()
+        except Exception:
+            pass
+        # only the connection being closed is forgotten: a newer one opened
+        # in the meantime stays where it is
+        if self.socket is sock:
             self.socket = None
 
     def send(self, header, payload=None):
-        if self.socket is None:
+        sock = self.socket
+        if sock is None:
             return False
 
         try:
@@ -102,7 +129,7 @@ class BridgeClient(object):
 
         with self._write_lock:
             try:
-                self.socket.sendall(raw)
+                sock.sendall(raw)
                 return True
             except Exception as error:
                 # write interrupted mid-frame: the peer has already read a
@@ -111,18 +138,19 @@ class BridgeClient(object):
                 # the socket must be closed, it is not enough to record the
                 # error in the status and carry on as if nothing happened.
                 # See DESIGN.md 5.1, the table of write outcomes
-                self.status = "write error: {}".format(error)
-                self.running = False
-                self._force_close()
+                if self.socket is sock:
+                    self.status = "write error: {}".format(error)
+                    self.running = False
+                self._force_close(sock)
                 return False
 
-    def _read_loop(self):
+    def _read_loop(self, sock):
         # make_socket_reader implements the read_exactly contract required
         # by the codec: b"" if the peer closes before sending any bytes,
         # EOFError if it closes mid-read. That distinction is what lets
         # decode_message return None on a clean disconnect.
-        read_exactly = protocol.make_socket_reader(self.socket)
-        while self.running and self.socket is not None:
+        read_exactly = protocol.make_socket_reader(sock)
+        while self._owns(sock):
             try:
                 message = protocol.decode_message(read_exactly)
             except protocol.BridgeMessageError as error:
@@ -132,14 +160,15 @@ class BridgeClient(object):
                 # for an except ValueError that would risk also catching
                 # UnicodeDecodeError: it is a subclass of ValueError, but it
                 # comes from decode_frame and is TERMINAL, not recoverable.
-                self.status = "message ignored: {}".format(error)
+                if self._owns(sock):
+                    self.status = "message ignored: {}".format(error)
                 continue
             except (protocol.BridgeFramingError, EOFError) as error:
                 # length error, invalid UTF-8 or truncation: the stream is
                 # lost, the only correct response is to close
-                if self.running:
+                if self._owns(sock):
                     self.status = "disconnected: {}".format(error)
-                self.running = False
+                    self.running = False
                 break
             except OSError:
                 # our own disconnect() closed the socket while this thread
@@ -151,38 +180,40 @@ class BridgeClient(object):
                 # socket") as soon as the file descriptor is closed: it is
                 # not one of the four outcomes in DESIGN.md 5.1, it is a
                 # platform detail below the framing level. If it was not us
-                # (self.running was still True) it is still an unexpected
+                # (the socket is still ours) it is still an unexpected
                 # network failure: it must be treated as terminal the same
                 # way.
-                if self.running:
+                if self._owns(sock):
                     self.status = "disconnected: connection interrupted"
-                self.running = False
+                    self.running = False
                 break
 
             if message is None:
                 # clean close at a frame boundary. If it was Revit that
-                # closed, self.running is still True here and it is correct
-                # to say so in the status. If instead it was US who called
-                # disconnect(), self.running is already False (the status is
-                # already "disconnected", written by disconnect()): do not
-                # overwrite it, otherwise a race between the two threads
-                # could read "connection closed by Revit" after a voluntary
-                # disconnect, which is misleading.
-                if self.running:
+                # closed, the socket is still ours and it is correct to say
+                # so in the status. If instead it was US who called
+                # disconnect() (the status is already "disconnected"), do
+                # not overwrite it: "connection closed by Revit" after a
+                # voluntary disconnect would be misleading.
+                if self._owns(sock):
                     self.status = "connection closed by Revit"
-                self.running = False
+                    self.running = False
                 break
 
+            # a message read just as the connection was being replaced
+            # belongs to the old one: it does not reach the queue
+            if not self._owns(sock):
+                break
             self.incoming.put(message)
 
         # the loop exits only on a terminal outcome (clean close,
-        # BridgeFramingError/EOFError, OSError) or because disconnect() has
-        # already closed everything: in each of these cases the socket must
-        # be closed here, otherwise it stays open on the Blender side even
-        # after the peer is gone (seen in the field: CLOSE_WAIT after Revit
-        # closes). _force_close() is idempotent, so it is safe even when
-        # disconnect() has already called it from another thread.
-        self._force_close()
+        # BridgeFramingError/EOFError, OSError) or because the socket is no
+        # longer ours: in each of these cases THIS socket must be closed
+        # here, otherwise it stays open on the Blender side even after the
+        # peer is gone (seen in the field: CLOSE_WAIT after Revit closes).
+        # _force_close() is idempotent and only forgets self.socket if it is
+        # still this one.
+        self._force_close(sock)
 
 
 CLIENT = BridgeClient()

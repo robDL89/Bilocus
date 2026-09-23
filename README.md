@@ -21,11 +21,11 @@ I've been creating in Blender since version 2.46, long before becoming an archit
 For years, my workflow meant constantly jumping back and forth with DXF exports from Blender and FBX imports into Revit... (sometimes taking advantage of Rhino, Grasshopper, Rhino inside, another software just to connect Blender and Revit).
 But this workflow was slow and clunky. Half the time, waiting to re-import models just to check a detail led to discovering missing faces, flipped normals, import errors.
 
-I needed something lightweight, fast, and reliable—a tool to preview geometry from Blender inside Revit in real time, and easily extract Revit geometry for faster prototyping and rendering.
+I needed something lightweight, fast, and reliable: a tool to preview geometry from Blender inside Revit in real time, and easily extract Revit geometry for faster prototyping and rendering.
 
 Bilocus was built to solve this exact pain point.
 
-Thanks to Claude Code, I finally had the opportunity to build this workflow—designing, prototyping, and testing an open-source live channel to bridge the gap between Blender and Revit effortlessly.
+Thanks to Claude Code, I finally had the opportunity to build this workflow by designing, prototyping, and testing an open-source live channel to bridge the gap between Blender and Revit effortlessly.
 
 ## What it does
 
@@ -53,6 +53,8 @@ Reference measurement: 385 objects and 1,042,674 triangles synced in 2.5 s.
 
 - Autodesk Revit 2024 or 2025
 - Blender 5.1 or 5.2
+- For **Bake Family** only: the English (`Metric Generic Model.rft`) or
+  English-Imperial (`Generic Model.rft`) Revit family template library.
 - Windows. Both programs run on the same computer and talk over a local
   connection (localhost, port 9877): nothing leaves your machine.
 
@@ -104,6 +106,10 @@ the connection drops, the panel says so.
 - Sync refuses to run while an object is in Edit Mode: press Tab first.
 - In Blender, `Shift+D` also copies the Bilocus identifier of an object.
   Bilocus detects the duplicate at the next Sync and gives it a new one.
+- With **Bake together**, the objects other than the active one live inside
+  the active object's family. **Remove Bake** or a bake of one of them on
+  its own does not take it out of that family: bake the active object again
+  without it, or use **Remove Bake** on the active object.
 
 ## Building from source
 

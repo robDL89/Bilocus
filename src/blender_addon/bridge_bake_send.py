@@ -10,8 +10,7 @@
 # reading and formatting bake_result) lives in bridge_bake.py and is
 # covered by tests.
 #
-# Source: the SELECTED objects that are also in ToRevit (decision 3 of
-# Phase B). Not the whole collection like Sync: the bake writes real
+# Source: the SELECTED objects that are also in ToRevit. Not the whole collection like Sync: the bake writes real
 # elements into the project file, and selection is the way to say "these
 # three, not the other forty". Not free selection: the collection
 # guarantees that what ends up in Revit is what was seen in the preview,
@@ -45,7 +44,7 @@ LAST_BAKE = {"message": NO_RESULT_MESSAGE}
 # --- per-object properties ---------------------------------------------------
 
 def register_properties():
-    # On the OBJECT and not on the scene (decision 4 of Phase B): it is
+    # On the OBJECT and not on the scene: it is
     # saved in the .blend together with the object, so the next bake finds
     # the category on its own, and a Shift+D copies it onto the duplicate
     # along with everything else.
@@ -55,7 +54,7 @@ def register_properties():
                     "creates in Revit for this object",
         items=bake.BAKE_CATEGORIES,
         default=bake.DEFAULT_CATEGORY))
-    # Per-object like the category (decision 6 of Phase B2): an open shell
+    # Per-object like the category: an open shell
     # is fine for a canopy and not for a column, so the choice belongs to
     # the object and not to the scene. Off by default: a family that does
     # not enclose a volume must be a choice, not a surprise.
@@ -183,6 +182,19 @@ def remove_targets(context=None):
         seen.add(key)
         ids.append(obj_id)
     return objects, ids
+
+
+def has_remove_candidates(context=None):
+    """True if at least one selected object carries a bridge id.
+
+    The panel's check for enabling "Remove Bake". It looks only at the
+    selection, not at the whole file like remove_targets: draw() runs on
+    every redraw of the sidebar, and a pass over bpy.data.objects there is
+    a permanent slowdown on a large scene. Ids shared with a copy are
+    filtered by the operator's invoke, which also says why."""
+    if context is None:
+        context = bpy.context
+    return any(coll.peek_id(obj) is not None for obj in _selected(context))
 
 
 def _shared_ids():

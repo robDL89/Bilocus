@@ -25,6 +25,11 @@ namespace Bilocus.Revit.Preview
         // Style revision the cached buffers were built with (0 = defaults).
         private long _builtStyleRevision;
 
+        // Store revision of the last prune: buffers of objects that left the
+        // store (remove, clear, sync_end) are dropped once per change, not
+        // on every frame.
+        private long _prunedRevision = -1;
+
         public string LastError = "";
 
         public PreviewServer(GeometryStore store) { _store = store; }
@@ -73,7 +78,15 @@ namespace Bilocus.Revit.Preview
                     _builtStyleRevision = _store.StyleRevision;
                 }
 
-                foreach (StoredObject item in _store.Objects)
+                List<StoredObject> objects = _store.Objects;
+
+                if (_store.Revision != _prunedRevision)
+                {
+                    PruneCache(objects);
+                    _prunedRevision = _store.Revision;
+                }
+
+                foreach (StoredObject item in objects)
                 {
                     List<GpuChunk> chunks = GetOrBuild(item);
 
@@ -163,6 +176,25 @@ namespace Bilocus.Revit.Preview
         {
             _gpu.Clear();
             _builtFor.Clear();
+        }
+
+        // Without this, the buffers of every object ever removed from the
+        // preview stay referenced for the whole Revit session.
+        private void PruneCache(List<StoredObject> objects)
+        {
+            HashSet<string> alive = new HashSet<string>();
+            foreach (StoredObject item in objects) { alive.Add(item.ObjectId); }
+
+            List<string> stale = new List<string>();
+            foreach (string id in _gpu.Keys)
+            {
+                if (!alive.Contains(id)) { stale.Add(id); }
+            }
+            foreach (string id in stale)
+            {
+                _gpu.Remove(id);
+                _builtFor.Remove(id);
+            }
         }
     }
 }

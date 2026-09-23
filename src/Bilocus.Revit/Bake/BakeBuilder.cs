@@ -18,7 +18,7 @@ namespace Bilocus.Revit.Bake
     // assimilated TransactionGroup: a single entry appears in the undo
     // history, "Bilocus: bake DirectShape", and one Ctrl+Z removes all the
     // objects together. Inside the group, though, each object has ITS OWN
-    // transaction. It is the only structure that holds together the plan's
+    // transaction. It is the only structure that holds together the
     // two requirements: with a single transaction, an object with the wrong
     // category or a copy made in Revit would take down, via rollback, the
     // twenty good objects already written before it.
@@ -366,7 +366,7 @@ namespace Bilocus.Revit.Bake
 
         // Solid if the mesh is closed, mesh otherwise.
         //
-        // The plan asks for Solid with a Mesh fallback. The
+        // The ideal is Solid with a Mesh fallback. The
         // TessellatedShapeBuilder.Build documentation (RevitAPI.xml 2024 and
         // 2025) says, though, that the only supported combinations are
         // Solid/Abort, AnyGeometry/Mesh and Mesh/Salvage: Solid/Mesh is not
@@ -470,7 +470,7 @@ namespace Bilocus.Revit.Bake
                     marked.Count);
             }
 
-            // Phase B2, decision 7: an object has in Revit EITHER a
+            // An object has in Revit EITHER a
             // DirectShape OR a family. If the bridge had made it a family,
             // it goes away here with all its instances, in the object's
             // transaction: a rejection further below rolls it back together

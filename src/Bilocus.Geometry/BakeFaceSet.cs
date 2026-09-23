@@ -9,7 +9,7 @@ namespace Bilocus.Geometry
     // The faces of an object ready for the TessellatedShapeBuilder, as
     // vertex indices.
     //
-    // This is decision 5 of the Phase B plan: planar quads and n-gons stay
+    // Planar quads and n-gons stay
     // whole faces, triangulation is the fallback for the SINGLE non-planar
     // polygon, never for the whole object. A cube with one skewed face
     // arrives in Revit as five square faces and two triangles, not as twelve

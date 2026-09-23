@@ -7,8 +7,7 @@ using System.Text;
 
 namespace Bilocus.Revit.Bake
 {
-    // The name of the family created by the bake: BL_<object name> (Phase
-    // B2, decision 3).
+    // The name of the family created by the bake: BL_<object name>.
     //
     // The name is a label, not identity: the link to the Blender object is
     // the obj_id mark, and renaming the object does not create a new

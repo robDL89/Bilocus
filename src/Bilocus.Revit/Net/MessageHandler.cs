@@ -264,7 +264,7 @@ namespace Bilocus.Revit.Net
             // Revit considers two vertices coincident, in meters. Deliberately
             // conservative: TessellatedFace's internal tolerance is not
             // documented, and a polygon kept whole for too little is worse
-            // than one triangulated out of caution (Phase B plan, risks).
+            // than one triangulated out of caution.
             // Read at every drain, like the document title: it costs nothing.
             double planarToleranceMeters =
                 app.Application.VertexTolerance * BridgeConstants.MetersPerFoot * 0.1;
@@ -354,8 +354,8 @@ namespace Bilocus.Revit.Net
         // where the measurement means anything. A benchmark outside Revit
         // would say nothing.
         //
-        // Replaceable: Task 8, if the measurement justifies it, changes the
-        // body of this method (invalidate only the active view, or skip
+        // Replaceable: if the measurement justifies it, only the
+        // body of this method changes (invalidate only the active view, or skip
         // drains that are too close together) without touching anything else.
         //
         // The comparison on the revision is what avoids redrawing when the

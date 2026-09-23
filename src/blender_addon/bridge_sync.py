@@ -3,7 +3,7 @@
 
 # Orchestration of the manual Sync and of the live transform.
 #
-# Decision 5 of CLAUDE.md: GEOMETRY is sent by hand with the Sync button,
+# GEOMETRY is sent by hand with the Sync button,
 # TRANSFORM starts on its own. This module only holds the "what to send"
 # side; the when of transform is the handler in __init__.py.
 

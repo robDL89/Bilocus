@@ -6,7 +6,7 @@
 # This module touches bpy: everything that can be decided without Blender
 # lives in bridge_mesh.py (resolve_ids) and is covered by the tests.
 #
-# Decision 4 of CLAUDE.md: the preview source is ONLY this collection. Not
+# The preview source is ONLY this collection. Not
 # the scene, not the selection.
 
 import uuid

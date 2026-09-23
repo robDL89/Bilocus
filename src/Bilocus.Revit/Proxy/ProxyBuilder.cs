@@ -19,7 +19,7 @@ namespace Bilocus.Revit.Proxy
     // find the model half done. The rest of this file's structure follows
     // from this: the subcategory, removing the previous proxies, creating the
     // curves and applying the mark all live inside the same
-    // using(Transaction), and the Task 2 methods were written on purpose so
+    // using(Transaction), and the methods it calls were written on purpose so
     // as not to open one of their own.
     //
     // DEGENERATE EDGES ARE SKIPPED, NOT MADE TO FAIL. A real mesh contains
@@ -177,7 +177,7 @@ namespace Bilocus.Revit.Proxy
             // discovering a GUID collision halfway through creation.
             ProxySchema.GetOrCreate();
 
-            // Replacement (decision 3 of the plan): by resending the same
+            // Replacement: by resending the same
             // Blender object, the previous proxies of THAT object go away.
             // Silent and intentional: it is the tool's mental model, "resend,
             // redo". Those of other objects are left untouched.
@@ -368,7 +368,7 @@ namespace Bilocus.Revit.Proxy
         // Measures how many distinct SketchPlane really support the created
         // curves.
         //
-        // Needed by Task 6 Step 6, which must determine whether a
+        // Needed to determine whether a
         // create-then-remove cycle brings the document back to the starting
         // count. These are two separate questions: how many planes exist for
         // N curves, and whether the plane attached to the curve is the one

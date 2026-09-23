@@ -45,7 +45,7 @@
     <Compile Include="..\..\src\Bilocus.Revit\Pull\ElementNaming.cs" Link="Pull\ElementNaming.cs" />
     <Compile Include="..\..\src\Bilocus.Revit\Pull\TessellatedMesh.cs" Link="Pull\TessellatedMesh.cs" />
 
-    <!-- Task 3: the text summary of SendSelectionCommand is the only other
+    <!-- The text summary of SendSelectionCommand is the only other
          part of the command that does not touch the Revit API, for the same
          reason as ElementNaming. SendSelectionCommand itself stays out: it is
          the shell that touches uidoc.Selection and the Element, not testable
@@ -62,7 +62,7 @@
          on purpose. -->
     <Compile Include="..\..\src\Bilocus.Revit\Proxy\ProxyNaming.cs" Link="Proxy\ProxyNaming.cs" />
 
-    <!-- Task 3: reading the proxy_edges message and summarizing its outcome.
+    <!-- Reading the proxy_edges message and summarizing its outcome.
          No Revit API on purpose, and that is the choice that matters in this
          task: proxy_edges is the first message that writes to the document,
          and writing requires a transaction, which requires the API. So the
@@ -73,7 +73,7 @@
     <Compile Include="..\..\src\Bilocus.Revit\Proxy\ProxyEdgeRequest.cs" Link="Proxy\ProxyEdgeRequest.cs" />
     <Compile Include="..\..\src\Bilocus.Revit\Proxy\ProxyBuildResult.cs" Link="Proxy\ProxyBuildResult.cs" />
 
-    <!-- Task 5: the counts and TEXTS of the bulk removal. It is the part of
+    <!-- The counts and TEXTS of the bulk removal. It is the part of
          the whole command most worth testing: "Remove Proxy" is the only
          wide-reaching destructive action of the bridge, and the number
          written in the confirmation is the user's only defense against a
@@ -83,7 +83,7 @@
          transaction and calls Document.Delete, stays out. -->
     <Compile Include="..\..\src\Bilocus.Revit\Proxy\ProxyRemovalResult.cs" Link="Proxy\ProxyRemovalResult.cs" />
 
-    <!-- Task 7: the counts and texts of the sketch plane cleanup. It is the
+    <!-- The counts and texts of the sketch plane cleanup. It is the
          pure half of SketchPlaneCleaner, shared by the TWO paths that delete
          proxy curves - explicit removal and replacement - and it is exactly
          the piece that used to exist in a single copy, in the less used path.
@@ -92,7 +92,7 @@
          plane can be deleted. -->
     <Compile Include="..\..\src\Bilocus.Revit\Proxy\SketchPlaneCleanupResult.cs" Link="Proxy\SketchPlaneCleanupResult.cs" />
 
-    <!-- Phase B, Task 2: the pure half of the bake. BakeMeshRequest is the
+    <!-- Phase B: the pure half of the bake. BakeMeshRequest is the
          bake_mesh message already read and validated, BakeBatch the batch
          that collects announced, arrived and missing objects, BakeResult the
          counts that go back to Blender with bake_result and the text of the
@@ -108,7 +108,7 @@
     <Compile Include="..\..\src\Bilocus.Revit\Bake\BakeBatch.cs" Link="Bake\BakeBatch.cs" />
     <Compile Include="..\..\src\Bilocus.Revit\Bake\BakeResult.cs" Link="Bake\BakeResult.cs" />
 
-    <!-- Phase B2, Task 1: the pure half of the family bake. BakeTarget is the
+    <!-- Phase B2: the pure half of the family bake. BakeTarget is the
          bake mode as it travels on the wire, FamilyNaming the BL_<name> that
          Revit must accept. Same rule as the four files above: the
          FamilyBaker that opens family documents and calls LoadFamily stays

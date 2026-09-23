@@ -7,7 +7,7 @@ using Xunit;
 namespace Bilocus.Revit.Net.Tests
 {
     // The text summary of SendSelectionCommand: the only part of the command
-    // that can be verified without Revit, together with the Task 3 headers
+    // that can be verified without Revit, together with the pull headers
     // (see SendSelectionMessagesTests).
     public class SendSelectionResultTests
     {

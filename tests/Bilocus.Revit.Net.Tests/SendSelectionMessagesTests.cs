@@ -8,7 +8,7 @@ using Xunit;
 
 namespace Bilocus.Revit.Net.Tests
 {
-    // The three Revit -> Blender headers from Task 3 (DESIGN.md 5.4), built
+    // The three Revit -> Blender headers (DESIGN.md 5.4), built
     // by MessageRouter.BuildBatchBegin / BuildGeometryHeader / BuildBatchEnd.
     // No BridgeServer involved: these methods are pure JSON string
     // construction, verifiable without a socket.

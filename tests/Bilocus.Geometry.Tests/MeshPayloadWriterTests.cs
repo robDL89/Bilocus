@@ -13,8 +13,7 @@ namespace Bilocus.Geometry.Tests
         public void WritesExpectedBytes_SingleTriangle()
         {
             // Expected bytes computed with a separate Python script
-            // (struct.pack), not from memory. See the task report for the
-            // command used.
+            // (struct.pack), not from memory.
             float[] positions = new float[] { 0, 0, 0, 1, 0, 0, 0, 1, 0 };
             float[] normals = new float[] { 0, 0, 1, 0, 0, 1, 0, 0, 1 };
             int[] indices = new int[] { 0, 1, 2 };

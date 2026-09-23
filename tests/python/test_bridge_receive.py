@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "src", "b
 
 import pytest
 import bridge_receive
-from bridge_protocol import BridgeMessageError
+from bridge_protocol import PROTOCOL_VERSION, BridgeMessageError
 
 
 # --- unpacking a triangle from known bytes --------------------------
@@ -41,9 +41,24 @@ def test_unpacks_triangle_from_known_bytes():
     assert indices == KNOWN_INDICES
 
 
+def test_hello_ack_with_same_protocol_version_is_accepted():
+    header = {"type": "hello_ack", "protocol_version": PROTOCOL_VERSION}
+    assert bridge_receive.check_hello_ack(header) is None
+
+
+@pytest.mark.parametrize("version", [PROTOCOL_VERSION + 1, None, "1", True, 1.0])
+def test_hello_ack_with_other_or_unreadable_version_is_a_mismatch(version):
+    header = {"type": "hello_ack"}
+    if version is not None:
+        header["protocol_version"] = version
+    problem = bridge_receive.check_hello_ack(header)
+    assert problem is not None
+    assert "protocol version mismatch" in problem
+
+
 def test_unpacked_arrays_are_tuples():
     # struct.unpack_from returns tuples: worth checking explicitly because
-    # the caller (Task 5) will have to decide how to group them for from_pydata.
+    # import_geometry has to group them into triples for from_pydata.
     positions, normals, indices = bridge_receive.unpack_mesh_payload(KNOWN_PAYLOAD, 3, 1)
     assert isinstance(positions, tuple)
     assert isinstance(normals, tuple)
@@ -56,7 +71,7 @@ def test_unpacked_arrays_are_tuples():
 # in tests/Bilocus.Geometry.Tests/MeshPayloadWriterTests.cs. The hex was
 # obtained by programmatically converting that file's literal byte array
 # with a Python script (bytes(...).hex()), not recomputed by hand and not
-# transcribed from memory: see the task report for the command used.
+# transcribed from memory.
 #
 # Triangle: 3 vertices (0,0,0) (1,0,0) (0,1,0), normals all (0,0,1),
 # a single triangle with indices [0, 1, 2].

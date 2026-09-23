@@ -52,8 +52,8 @@ namespace Bilocus.Revit
             }
 
             // The cost of UpdateAllOpenViews on the live path. Meant to be read
-            // while Blender is dragging an object: it is the number Task 8
-            // will use to decide whether to limit itself to the active view.
+            // while Blender is dragging an object: it is the number that
+            // says whether invalidating only the active view would be worth it.
             MessageHandler handler = App.Current.MessageHandler;
             if (handler.InvalidateCount > 0)
             {

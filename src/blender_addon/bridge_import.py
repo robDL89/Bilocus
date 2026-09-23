@@ -120,7 +120,7 @@ def find_object(element_id):
     on purpose: an index built at the start of the batch would hold
     references to objects the user can delete between one timer tick and
     the next, and reading a freed ID does not give an error, it gives a
-    crash. The pull is limited to the current selection (decision 6), so
+    crash. The pull is limited to the current selection, never the model, so
     the cost is what it is."""
     for obj in bpy.data.objects:
         if obj.type != 'MESH':

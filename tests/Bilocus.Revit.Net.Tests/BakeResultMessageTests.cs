@@ -41,8 +41,8 @@ namespace Bilocus.Revit.Net.Tests
             return result;
         }
 
-        // Fields and order from the plan, "Wire contract". The order does
-        // not matter for a JSON parser, but the plan fixes it, and a test
+        // Fields and order of the wire contract (DESIGN.md 5.4). The order does
+        // not matter for a JSON parser, but the contract fixes it, and a test
         // that enumerates the names is also the most direct way to notice
         // an extra or missing field.
         [Fact]

@@ -20,7 +20,7 @@ from bridge_protocol import BridgeFramingError
 #
 # The expected bytes were computed with a separate script (not written from
 # memory), packing the same triangle with struct.pack in isolation from
-# bridge_mesh.py: see the task report for the script used.
+# bridge_mesh.py.
 #
 # Triangle: 3 vertices (0,0,0) (1,0,0) (0,1,0), normals all (0,0,1),
 # a single triangle with indices [0, 1, 2].

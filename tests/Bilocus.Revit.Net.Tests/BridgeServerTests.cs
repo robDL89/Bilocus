@@ -203,7 +203,7 @@ namespace Bilocus.Revit.Net.Tests
                 }
             }
 
-            // The check that in the plan is done by hand with netstat: if the
+            // The check otherwise done by hand with netstat: if the
             // port stays occupied, the listener does not start on Revit's restart.
             TcpListener rebind = new TcpListener(IPAddress.Loopback, port);
             rebind.Start();

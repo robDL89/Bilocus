@@ -27,7 +27,7 @@ def extract(obj, depsgraph, reject_over=0):
 
     Positions are in LOCAL coordinates: the object's matrix travels
     separately in the header, so a transform does not force resending the
-    geometry (decision 5 of CLAUDE.md).
+    geometry.
 
     If `reject_over` is positive and the evaluated mesh exceeds that number
     of vertices, the three lists come back None while the counts are still
@@ -117,7 +117,7 @@ def extract_polygons(obj, depsgraph, reject_over=0):
     quad, without a diagonal), and to fall back to triangles where the
     polygon is not planar it needs the ones Blender splits it into, with
     their owning polygon. See bridge_bake.py and the contract in
-    docs/plans/2026-09-14-fase-b.md.
+    DESIGN.md 5.3.
 
     The sequences have the shape pack_bake_payload expects, and the
     header's counts are derived from their lengths. LOCAL positions, as in

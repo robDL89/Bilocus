@@ -21,7 +21,7 @@ from bridge_protocol import BridgeFramingError, BridgeMessageError
 
 # --- golden vector shared with the C# side --------------------------------------
 #
-# The same hex as the contract in docs/plans/2026-09-14-fase-b.md, asserted
+# The same hex as the golden vector of the bake contract, asserted
 # byte for byte also by BakeMeshPayloadTests. It was double-checked with
 # struct.pack in isolation from bridge_bake.py before the module was
 # written.

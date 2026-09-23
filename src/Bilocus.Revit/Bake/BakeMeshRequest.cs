@@ -43,7 +43,7 @@ namespace Bilocus.Revit.Bake
 
         public BakeMeshPayload Mesh { get; private set; }
 
-        // "Accept open solid" (Phase B2, decision 6). Only counts in the
+        // "Accept open solid". Only counts in the
         // family bake: with a Sheet outcome from the builder, the family is
         // only created if this is true. In the DirectShape bake it is
         // ignored, an open mesh still goes in as a mesh. False if the message

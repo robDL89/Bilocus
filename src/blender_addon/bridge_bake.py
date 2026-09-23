@@ -14,8 +14,7 @@
 #   tri_vertices  tri_count * 3    uint32    Blender's triangles
 #   tri_faces     tri_count        uint32    owning polygon
 #
-# See the wire contract in docs/plans/2026-09-14-fase-b.md, its extension in
-# docs/plans/2026-09-14-fase-b2.md and DESIGN.md 5.3 / 5.4.
+# See the wire contract in DESIGN.md 5.3 / 5.4.
 # The payload is identical in both modes: only the headers change.
 #
 # Why BOTH the polygons AND the triangles travel: planarity is decided by
@@ -625,7 +624,7 @@ def _with_tail(text, fields):
     # last the failures, because their reason closes the line after the
     # colon.
     if fields["switched"]:
-        # Decision 7: an object has only one mode in Revit, and the bake
+        # An object has only one mode in Revit, and the bake
         # deleted the other one. It must be said, because something the
         # user did not explicitly ask to remove disappears.
         text = "{} - {} of the other mode {}".format(

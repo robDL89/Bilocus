@@ -5,8 +5,8 @@ using System;
 
 namespace Bilocus.Geometry
 {
-    // Reads and validates the payload of the bake_mesh message (Phase B
-    // plan, "Wire contract"). Little-endian, no padding, in this order:
+    // Reads and validates the payload of the bake_mesh message (DESIGN.md
+    // 5.3). Little-endian, no padding, in this order:
     //
     //   positions     vert_count * 3   float32   x y z LOCAL, meters
     //   face_sizes    face_count       uint32    vertices of each polygon

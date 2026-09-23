@@ -55,7 +55,7 @@ namespace Bilocus.Revit.Net.Tests
         // Two distinct numbers on purpose: those found with the mark and
         // those Revit declares it deleted in total. If the second equals the
         // first, Delete did not take away any dependency, which is exactly
-        // what Task 5 needed to measure.
+        // what the removal needs to measure.
         [Fact]
         public void Summary_ReportsFoundAndDeletedSeparately()
         {

@@ -78,13 +78,13 @@ namespace Bilocus.Revit.Bake
         // when an object arrives in Revit with a hole.
         public int SkippedFaceCount;
 
-        // Phase B2, decision 7: elements of the OTHER mode removed by the
+        // Elements of the OTHER mode removed by the
         // mode switch. In the family bake, the DirectShapes of the same
         // object; in the DirectShape bake, instances and families. Travels
         // on bake_result as switched.
         public int SwitchedCount;
 
-        // Phase B2, decision 8: objects whose family re-bake updated the
+        // Objects whose family re-bake updated the
         // geometry but did NOT move the instance, because there was more
         // than one marked instance (copies made in Revit). Travels as
         // not_moved.

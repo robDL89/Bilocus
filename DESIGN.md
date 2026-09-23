@@ -19,7 +19,7 @@ with a geometry engine that lives in a separate process.
 
 ---
 
-## 2. How we preview ? Rhino.Inside Example
+## 2. How we preview: the Rhino.Inside example
 
 Rhino.Inside loads RhinoCommon (a .NET library) in the same process as
 Revit. Blender is a monolithic C/C++ executable with its own event loop,
@@ -179,6 +179,11 @@ failure would have to be treated as terminal.
 | `bake_mesh` | `{type, obj_id, name, category, matrix, vert_count, face_count, loop_count, tri_count, accept_open}` | positions (vert_count*3 f32) + face_sizes (face_count u32) + face_vertices (loop_count u32) + tri_vertices (tri_count*3 u32) + tri_faces (tri_count u32) |
 | `bake_end` | `{type}` | - |
 | `bake_remove` | `{type, obj_ids}` | - |
+
+`hello` is answered with `hello_ack` only when `protocol_version` matches the
+add-in's (an absent field is accepted); a different version gets an `error`
+frame that names both versions. The Blender side makes the same check on
+`hello_ack` and disconnects on a mismatch.
 
 `sync_begin` lists the ids that are about to arrive: it lets Revit remove,
 at the end, the objects no longer present in the collection, atomically and
@@ -745,7 +750,7 @@ remove and avoid re-exporting to Blender what the bridge generated
 
 ### Phase B2 - bake as family
 `FreeFormElement` in a family from `Metric Generic Model.rft` (`English`
-folder), loadable category per object, instance on the nearest level,
+folder, falling back to `Generic Model.rft` in `English-Imperial`), loadable category per object, instance on the nearest level,
 re-bake that updates the geometry while preserving manually made voids.
 `FamilyBaker` opens a `TransactionGroup` around the batch. Verified in
 Revit on 2026-09-14 that `LoadFamily`/`EditFamily` allow it: a family bake

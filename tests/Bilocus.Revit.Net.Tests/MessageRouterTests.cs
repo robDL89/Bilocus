@@ -139,12 +139,45 @@ namespace Bilocus.Revit.Net.Tests
             GeometryStore store = new GeometryStore();
             MessageRouter router = new MessageRouter(store);
             Sink sink = new Sink();
-            HostInfo awkward = new HostInfo("2024", "Vil\"la \u00e0 Tirrenia\\rev");
+            HostInfo awkward = new HostInfo("2024", "Cas\"a \u00e0 Mare\\rev");
 
             router.Handle(new Frame("{\"type\":\"hello\"}", null), sink.Send, awkward);
 
             Assert.Single(sink.Sent);
-            Assert.Equal("Vil\"la \u00e0 Tirrenia\\rev", sink.HeaderOf(0).GetProperty("doc_title").GetString());
+            Assert.Equal("Cas\"a \u00e0 Mare\\rev", sink.HeaderOf(0).GetProperty("doc_title").GetString());
+        }
+
+        // A Blender add-on from another release: the handshake is refused
+        // with a readable reason instead of acked, otherwise the mismatch
+        // would surface later as puzzling content errors.
+        [Fact]
+        public void Hello_WithDifferentProtocolVersion_RepliesErrorNotAck()
+        {
+            GeometryStore store = new GeometryStore();
+            MessageRouter router = new MessageRouter(store);
+            Sink sink = new Sink();
+
+            int other = BridgeConstants.ProtocolVersion + 1;
+            router.Handle(
+                new Frame("{\"type\":\"hello\",\"protocol_version\":" + other + "}", null), sink.Send, Host);
+
+            Assert.Single(sink.Sent);
+            Assert.Equal("error", sink.TypeOf(0));
+            Assert.Contains("protocol version", sink.HeaderOf(0).GetProperty("message").GetString());
+            Assert.Equal(1, router.ContentErrorCount);
+        }
+
+        [Fact]
+        public void Hello_WithNonIntegerProtocolVersion_RepliesError()
+        {
+            GeometryStore store = new GeometryStore();
+            MessageRouter router = new MessageRouter(store);
+            Sink sink = new Sink();
+
+            router.Handle(new Frame("{\"type\":\"hello\",\"protocol_version\":\"1\"}", null), sink.Send, Host);
+
+            Assert.Single(sink.Sent);
+            Assert.Equal("error", sink.TypeOf(0));
         }
 
         // ---- geometry ----

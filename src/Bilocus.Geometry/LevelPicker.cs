@@ -7,7 +7,7 @@ using System.Collections.Generic;
 namespace Bilocus.Geometry
 {
     // The level on which to place a bridge family instance: the closest one
-    // below the object's origin (Phase B2, decision 4).
+    // below the object's origin.
     //
     // The instance's real elevation is decided by the absolute Z passed to
     // NewFamilyInstance, with the offset computed by Revit (verified in

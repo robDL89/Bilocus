@@ -23,7 +23,7 @@ namespace Bilocus.Revit.Bake
     public static class BakeCategory
     {
         // Generic model: the category of an object the user has not assigned
-        // one to (decision 4 of the Phase B plan).
+        // one to.
         public const string DefaultCategory = "OST_GenericModel";
 
         private const string Prefix = "OST_";

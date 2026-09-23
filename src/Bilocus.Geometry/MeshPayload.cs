@@ -60,13 +60,22 @@ namespace Bilocus.Geometry
             return new MeshPayload(positions, normals, indices);
         }
 
+        // No temporary array on little-endian machines: a Sync of a million
+        // vertices reads six million floats here. Same as BakeMeshPayload.
         private static float ReadFloat(byte[] buffer, ref int offset)
         {
-            byte[] raw = new byte[4];
-            Array.Copy(buffer, offset, raw, 0, 4);
-            if (!BitConverter.IsLittleEndian) Array.Reverse(raw);
+            float value;
+            if (BitConverter.IsLittleEndian)
+            {
+                value = BitConverter.ToSingle(buffer, offset);
+            }
+            else
+            {
+                byte[] raw = new byte[] { buffer[offset + 3], buffer[offset + 2], buffer[offset + 1], buffer[offset] };
+                value = BitConverter.ToSingle(raw, 0);
+            }
             offset += 4;
-            return BitConverter.ToSingle(raw, 0);
+            return value;
         }
 
         private static uint ReadUInt(byte[] buffer, ref int offset)

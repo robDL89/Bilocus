@@ -162,7 +162,7 @@ namespace Bilocus.Revit.Net.Tests
         }
 
         // The expected number is 2: one ModelCurve and one SketchPlane per
-        // edge. This is the measure Task 6 will compare against the
+        // edge. This is the measure to compare against the
         // document's element count.
         [Fact]
         public void ElementsPerEdge_IsTwoWhenEveryCurveHasItsOwnPlane()
@@ -176,7 +176,7 @@ namespace Bilocus.Revit.Net.Tests
         }
 
         // If Revit reuses the planes, the cost per edge drops below 2: this is
-        // exactly what Task 6 must be able to distinguish.
+        // exactly what the measure must be able to distinguish.
         [Fact]
         public void ElementsPerEdge_DropsWhenRevitReusesPlanes()
         {

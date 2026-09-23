@@ -21,7 +21,7 @@ from bridge_protocol import BridgeFramingError
 #
 # The expected bytes were computed with a separate script (not written from
 # memory), packing the same two edges with struct.pack in isolation from
-# bridge_edges.py: see the task report for the script used.
+# bridge_edges.py.
 #
 # Two edges: (0,0,0)-(1,0,0) and (1,0,0)-(1,2.5,-0.5). The second has
 # non-trivial components on purpose: 2.5 and -0.5 are exact in float32 but

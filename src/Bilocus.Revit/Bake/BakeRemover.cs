@@ -58,7 +58,7 @@ namespace Bilocus.Revit.Bake
 
             try
             {
-                // Phase B2, decision 9: both modes. An object switched from
+                // Both modes. An object switched from
                 // DirectShape to family and back must not leave anything
                 // behind after "Remove bake".
                 BakeElements.Sweep sweep = BakeElements.Collect(document, objectIds, true, true);

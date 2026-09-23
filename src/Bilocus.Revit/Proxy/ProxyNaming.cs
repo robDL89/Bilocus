@@ -54,8 +54,7 @@ namespace Bilocus.Revit.Proxy
         public const string VendorId = "BILOCUS";
 
         // The schema's only field: the obj_id of the source Blender object.
-        // This is what allows replacing proxies of the same object (decision
-        // 3 of the phase plan).
+        // This is what allows replacing proxies of the same object.
         public const string ObjectIdFieldName = "obj_id";
 
         // Name of the Lines subcategory. This is NOT a schema name: it is a
@@ -192,9 +191,10 @@ namespace Bilocus.Revit.Proxy
         // not an exception in the middle of a loop over every curve in the
         // model.
         //
-        // Ordinal comparison, case sensitive: obj_ids come from the names of
-        // Blender objects, where "Cube" and "cube" are two different objects.
-        // A case-insensitive comparison would replace one object's proxies
+        // Ordinal comparison, case sensitive: an obj_id is an opaque
+        // identifier written by the Blender side (a uuid4 hex today), and
+        // two ids that differ only in case are two different objects. A
+        // case-insensitive comparison would replace one object's proxies
         // while resending the other.
         public static bool MatchesObjectId(string stored, string requested)
         {
