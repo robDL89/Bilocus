@@ -178,11 +178,13 @@ namespace Bilocus.Revit
         public const string HelpUrl = "https://github.com/robDL89/Bilocus#readme";
 
         // Icons are PNG files embedded in the assembly (Resources\<name>32.png
-        // and <name>16.png, drawn by tools/make_icons.py). A missing icon
-        // leaves the button without image instead of failing the startup.
+        // and <name>16.png, drawn by tools/make_icons.py). An optional
+        // <name>64.png saved at 192 DPI replaces the 32 one: WPF shows it at
+        // 32 units, sharp on high-DPI screens. A missing icon leaves the
+        // button without image instead of failing the startup.
         private static void Decorate(PushButtonData data, string iconName)
         {
-            data.LargeImage = LoadIcon(iconName + "32");
+            data.LargeImage = LoadIcon(iconName + "64") ?? LoadIcon(iconName + "32");
             data.Image = LoadIcon(iconName + "16");
             data.SetContextualHelp(new ContextualHelp(ContextualHelpType.Url, HelpUrl));
         }

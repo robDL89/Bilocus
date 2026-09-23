@@ -1,4 +1,13 @@
-# Bilocus
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.svg">
+    <img src="docs/images/logo.svg" width="600" alt="Bilocus">
+  </picture>
+</h1>
+
+<p align="center">
+  <img src="docs/media/hero-sync.gif" alt="Geometry nodes edited in Blender, updated live in Revit">
+</p>
 
 Live bridge between Blender and Autodesk(R) Revit(R) software: the geometry
 modeled in Blender is visible inside Revit in real time, without becoming
@@ -19,18 +28,24 @@ by Autodesk, the Blender Foundation or Anthropic.
   Move, rotate or scale an object and Revit follows in real time. The
   preview is graphics only: nothing is added to the Revit model. Face and
   edge colors are set in the Blender panel.
+
+  ![Live preview: an object moved and rotated in Blender follows in Revit](docs/media/live-preview.gif)
 - **Selection pull, Revit -> Blender.** Select elements in Revit and press
   **Send Selection to Blender**: they arrive in the `FromRevit` collection,
   with openings in the right place. Sending again updates them in place.
 - **Snappable proxies.** Select edges of a Blender mesh and press
   **Create Proxy**: Revit gets real model lines (straight or arcs) that you
   can snap to and use as references.
+
+  ![A shell modeled in Blender, proxies in Revit used to place the columns](docs/media/proxy-shell-structure.gif)
 - **Bake.** When a shape is final, bake it into the Revit model as a
   **DirectShape** or as a loadable **family** (`BL_<name>`), with the Revit
   category of your choice. With **Bake together** checked, all the selected
   objects go into one family named after the active object. Baking again
   replaces the previous version; **Remove Bake** deletes what Bilocus
   created.
+
+  ![Bake as DirectShape, then orbiting the result in Revit](docs/media/bake.gif)
 
 Reference measurement: 385 objects and 1,042,674 triangles synced in 2.5 s.
 

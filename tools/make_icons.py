@@ -24,7 +24,6 @@ S = 512  # drawing canvas; every coordinate below is in 0..512
 BLUE = (47, 128, 237, 255)
 ORANGE = (242, 140, 40, 255)
 RED = (229, 72, 77, 255)
-SLATE = (84, 104, 124, 255)
 WHITE = (255, 255, 255, 255)
 
 
@@ -74,18 +73,6 @@ def icon_send_selection():
     return img
 
 
-def icon_status():
-    # The Bilocus mark: two places joined by a live link.
-    img = canvas()
-    d = ImageDraw.Draw(img)
-    line(d, [(140, 256), (372, 256)], SLATE, 40)
-    disc(d, 128, 256, 105, BLUE)
-    disc(d, 384, 256, 105, ORANGE)
-    disc(d, 128, 256, 45, WHITE)
-    disc(d, 384, 256, 45, WHITE)
-    return img
-
-
 def icon_remove_proxy():
     # Two proxy lines (segments with their end points) and a red delete badge.
     img = canvas()
@@ -100,9 +87,9 @@ def icon_remove_proxy():
     return img
 
 
+# Status16/32/64.png are not drawn here: they come from the Bilocus logo.
 ICONS = {
     "SendSelection": icon_send_selection,
-    "Status": icon_status,
     "RemoveProxy": icon_remove_proxy,
 }
 
