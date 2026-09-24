@@ -70,9 +70,11 @@ That opens Revit to everything Blender can model:
   can draw.
 - **Modifiers.** Arrays, bevels, booleans, subdivision, curves along paths.
   Bilocus sends the evaluated shape: nothing needs to be applied first.
-- **Other add-ons.** Anything that produces a mesh in Blender, from building
-  and landscape generators to scanned or photogrammetry models, can end up
-  in Revit the same way.
+- **Other add-ons.** Anything that produces a mesh in Blender can end up in
+  Revit the same way: [Tissue](https://github.com/alessandro-zomparelli/tissue)
+  for tessellations and lattices, [Sverchok](https://github.com/nortikin/sverchok)
+  for node-based parametric design, building and landscape generators,
+  scanned or photogrammetry models.
 
 Revit stays the place where the project is documented; Blender becomes the
 place where the shape is found.
