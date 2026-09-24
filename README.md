@@ -55,6 +55,28 @@ by Autodesk, the Blender Foundation or Anthropic.
 
 Reference measurement: 385 objects and 1,042,674 triangles synced in 2.5 s.
 
+## What you can build
+
+Bilocus does not care how a shape was made. If Blender can show it as a
+mesh, Revit can receive it: as a live preview while you work, as proxies to
+snap to, as a DirectShape or a family when it is final.
+
+That opens Revit to everything Blender can model:
+
+- **Geometry nodes.** Parametric shells, facade patterns, lattices,
+  scattered elements: change a parameter in Blender and see the result in
+  the Revit model.
+- **Sculpting.** Terrain, organic forms, free surfaces that no Revit tool
+  can draw.
+- **Modifiers.** Arrays, bevels, booleans, subdivision, curves along paths.
+  Bilocus sends the evaluated shape: nothing needs to be applied first.
+- **Other add-ons.** Anything that produces a mesh in Blender, from building
+  and landscape generators to scanned or photogrammetry models, can end up
+  in Revit the same way.
+
+Revit stays the place where the project is documented; Blender becomes the
+place where the shape is found.
+
 ## Why Bilocus?
 
 As an architect, I've always found myself caught between two worlds: Revit and Blender. On one side there's Blender, an extremely versatile and malleable tool where you can create whatever comes to mind using geometry nodes, sculpting, and precise editing tools. On the other side there's Revit: parametric, strict, and precise, but inherently limited when it comes to "freeform" exploration.
