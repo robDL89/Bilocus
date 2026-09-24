@@ -201,7 +201,8 @@ namespace Bilocus.Revit.Bake
                 // to find out whether Revit ties them to the result's
                 // lifetime.
                 BuiltShape shape;
-                string buildRefusal = BuildShape(world, request.Mesh, planarToleranceMeters, flip, out shape);
+                string buildRefusal = BuildShape(
+                    world, request.Mesh, planarToleranceMeters, flip, request.SmoothMesh, out shape);
                 if (buildRefusal != null)
                 {
                     result.AddFailure(name, buildRefusal);
@@ -325,15 +326,18 @@ namespace Bilocus.Revit.Bake
         // retry is kept only if it comes out as a Solid or a Sheet: a mesh
         // that stays a mesh keeps its whole faces.
         //
+        // meshOnly is the "smooth mesh" checkbox: a mesh is asked for from
+        // the start, and there is no solid to retry for.
+        //
         // Returns the reason if no face is left, otherwise null. Raises like
         // TessellatedShapeBuilder.Build on the FIRST build; an exception in
         // the retry only discards the retry.
         internal static string BuildShape(double[] points, BakeMeshPayload mesh,
-            double planarToleranceMeters, bool flipWinding, out BuiltShape shape)
+            double planarToleranceMeters, bool flipWinding, bool meshOnly, out BuiltShape shape)
         {
             BakeFaceSet faces = BakeFaceSet.Build(points, mesh, planarToleranceMeters, flipWinding);
-            string refusal = BuildOnce(faces, points, out shape);
-            if (refusal != null) { return refusal; }
+            string refusal = BuildOnce(faces, points, meshOnly, out shape);
+            if (refusal != null || meshOnly) { return refusal; }
 
             TessellatedShapeBuilderOutcome outcome = shape.Result.Outcome;
             if (outcome == TessellatedShapeBuilderOutcome.Solid
@@ -348,7 +352,7 @@ namespace Bilocus.Revit.Bake
             BuiltShape retry = null;
             try
             {
-                if (BuildOnce(exact, points, out retry) != null) { return null; }
+                if (BuildOnce(exact, points, false, out retry) != null) { return null; }
                 TessellatedShapeBuilderOutcome retried = retry.Result.Outcome;
                 if (retried != TessellatedShapeBuilderOutcome.Solid
                     && retried != TessellatedShapeBuilderOutcome.Sheet)
@@ -370,12 +374,12 @@ namespace Bilocus.Revit.Bake
             }
         }
 
-        private static string BuildOnce(BakeFaceSet faces, double[] points, out BuiltShape shape)
+        private static string BuildOnce(BakeFaceSet faces, double[] points, bool meshOnly, out BuiltShape shape)
         {
             shape = new BuiltShape { Faces = faces, Builder = new TessellatedShapeBuilder() };
             try
             {
-                string refusal = FillBuilder(shape.Builder, faces, points, out shape.SkippedFaces);
+                string refusal = FillBuilder(shape.Builder, faces, points, meshOnly, out shape.SkippedFaces);
                 if (refusal != null)
                 {
                     shape.Dispose();
@@ -405,12 +409,12 @@ namespace Bilocus.Revit.Bake
         // work (meters in, feet inside, the same skipped faces and the same
         // target/fallback choice), and a second copy would diverge at the
         // first fix.
-        private static string FillBuilder(
-            TessellatedShapeBuilder builder, BakeFaceSet faces, double[] worldPoints, out int skippedFaces)
+        private static string FillBuilder(TessellatedShapeBuilder builder, BakeFaceSet faces,
+            double[] worldPoints, bool meshOnly, out int skippedFaces)
         {
             skippedFaces = 0;
 
-            ChooseTargetAndFallback(builder);
+            ChooseTargetAndFallback(builder, meshOnly);
 
             XYZ[] points = ToFeet(worldPoints);
 
@@ -476,8 +480,19 @@ namespace Bilocus.Revit.Bake
         // documentation, and the day a version accepts Solid/Mesh it is used
         // without touching code. Not Solid/Abort though: an open mesh (a
         // plane, a terrain) would fail instead of arriving as a mesh.
-        private static void ChooseTargetAndFallback(TessellatedShapeBuilder builder)
+        //
+        // meshOnly ("smooth mesh"): Mesh/Salvage, the documented pair. Revit
+        // draws a mesh DirectShape without the edges of its faces, which is
+        // the whole point, and gives it no volume.
+        private static void ChooseTargetAndFallback(TessellatedShapeBuilder builder, bool meshOnly)
         {
+            if (meshOnly)
+            {
+                builder.Target = TessellatedShapeBuilderTarget.Mesh;
+                builder.Fallback = TessellatedShapeBuilderFallback.Salvage;
+                return;
+            }
+
             if (builder.AreTargetAndFallbackCompatible(
                 TessellatedShapeBuilderTarget.Solid, TessellatedShapeBuilderFallback.Mesh))
             {

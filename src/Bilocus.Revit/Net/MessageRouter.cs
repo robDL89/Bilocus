@@ -409,10 +409,13 @@ namespace Bilocus.Revit.Net
                 // DirectShape batch, where it is then ignored: a wrong type
                 // is a defect of the sender in any batch.
                 bool acceptOpen = OptionalBool(root, "accept_open", false);
+                // Same rules, the other way round: absent = false, read and
+                // validated in a family batch too, where it is ignored.
+                bool smoothMesh = OptionalBool(root, "smooth_mesh", false);
 
                 BakeMeshRequest request = BakeMeshRequest.Parse(
                     objId, name, category, matrix, vertCount, faceCount, loopCount, triCount, payload,
-                    acceptOpen);
+                    acceptOpen, smoothMesh);
 
                 // Rejects an id not announced; a second arrival of the same
                 // id replaces the first. A rejected bake_mesh, here or above,

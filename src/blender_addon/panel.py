@@ -198,9 +198,10 @@ class BILOCUS_OT_apply_bake_category(bpy.types.Operator):
             self.report({'ERROR'}, "no active mesh to copy the category from")
             return {'CANCELLED'}
         count = bake.apply_category_to_selected(context)
-        self.report({'INFO'}, "category {} and open solid {} copied to {} objects".format(
+        self.report({'INFO'}, "category {}, open solid {}, smooth mesh {} copied to {} objects".format(
             bake.category_of(target),
-            "accepted" if bake.accept_open_of(target) else "rejected", count))
+            "accepted" if bake.accept_open_of(target) else "rejected",
+            "on" if bake.smooth_mesh_of(target) else "off", count))
         return {'FINISHED'}
 
 
@@ -353,6 +354,8 @@ class BILOCUS_PT_panel(bpy.types.Panel):
             # object becomes", and "Apply to Selected" copies them together
             if hasattr(target, bake.ACCEPT_OPEN_PROPERTY):
                 box.prop(target, bake.ACCEPT_OPEN_PROPERTY, text="Accept open solid")
+            if hasattr(target, bake.SMOOTH_MESH_PROPERTY):
+                box.prop(target, bake.SMOOTH_MESH_PROPERTY, text="Smooth mesh (no volume)")
 
         row = box.row()
         row.enabled = target is not None

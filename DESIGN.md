@@ -176,7 +176,7 @@ failure would have to be treated as terminal.
 | `preview_style` | `{type, face, edge}` | - |
 | `proxy_edges` | `{type, obj_id, name, edge_count, arc_count?}` | `edge_count * 6` float32: two endpoints per edge, x y z each; then `arc_count * 9` float32: start, end, mid-angle point per arc |
 | `bake_begin` | `{type, obj_ids, target, host?}` | - |
-| `bake_mesh` | `{type, obj_id, name, category, matrix, vert_count, face_count, loop_count, tri_count, accept_open}` | positions (vert_count*3 f32) + face_sizes (face_count u32) + face_vertices (loop_count u32) + tri_vertices (tri_count*3 u32) + tri_faces (tri_count u32) |
+| `bake_mesh` | `{type, obj_id, name, category, matrix, vert_count, face_count, loop_count, tri_count, accept_open, smooth_mesh?}` | positions (vert_count*3 f32) + face_sizes (face_count u32) + face_vertices (loop_count u32) + tri_vertices (tri_count*3 u32) + tri_faces (tri_count u32) |
 | `bake_end` | `{type}` | - |
 | `bake_remove` | `{type, obj_ids}` | - |
 
@@ -429,6 +429,16 @@ threshold separates the two. When the builder returns neither a Solid nor
 a Sheet (an open mesh already stitched), the polygons that are not exactly
 planar fall back to their triangles and the builder runs again; the retry
 is kept if it gives a Solid or a Sheet. Same path for the family bake.
+
+**Smooth mesh, per object.** `smooth_mesh` on `bake_mesh` (absent =
+false) asks the DirectShape bake for a mesh from the start: target
+`Mesh`, fallback `Salvage`, no retry. Revit draws a mesh DirectShape
+without the edges of its faces, so a subdivided surface reads smooth, at
+the price of the volume, the cut pattern in section and the joins. It is
+the look a closed shell had before the retry turned it into a Solid, now
+a choice instead of an accident. The family bake ignores it: a
+`FreeFormElement` needs a solid. A mesh counts in `as_mesh` like any
+other.
 
 **Re-bake = replacement.** The `DirectShape` is found again via the
 Extensible Storage mark of the proxies (same schema, filtered by class).

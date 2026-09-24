@@ -605,7 +605,9 @@ namespace Bilocus.Revit.Bake
                     ? placement.FlipWinding
                     : RowMajorMatrix.Determinant3x3(member.Matrix) < 0;
                 BakeBuilder.BuiltShape shape;
-                string buildRefusal = BakeBuilder.BuildShape(points, member.Mesh, _tolerance, flip, out shape);
+                // meshOnly false whatever the checkbox says: a
+                // FreeFormElement needs a solid.
+                string buildRefusal = BakeBuilder.BuildShape(points, member.Mesh, _tolerance, flip, false, out shape);
                 if (buildRefusal != null) { return buildRefusal; }
                 keepAlive.Add(shape);
 
