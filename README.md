@@ -5,7 +5,7 @@
   </picture>
 </h1>
 
-<h3 align="center">Model in Blender, see it live in Revit.</h3>
+<h3 align="center">In Blender and Revit at once.</h3>
 
 <br>
 
