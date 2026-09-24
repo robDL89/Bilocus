@@ -79,6 +79,8 @@ That opens Revit to everything Blender can model:
   for node-based parametric design, building and landscape generators,
   scanned or photogrammetry models.
 
+![A Voronoi shell built with Sverchok, baked into Revit as a solid and as a smooth mesh, then cut and dimensioned in section](docs/media/sverchok-voronoi-shell.gif)
+
 Revit stays the place where the project is documented; Blender becomes the
 place where the shape is found.
 
