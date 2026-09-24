@@ -1,4 +1,17 @@
-# Bilocus
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-dark.svg">
+    <img src="docs/images/logo.svg" width="600" alt="Bilocus">
+  </picture>
+</h1>
+
+<h3 align="center">In Blender and Revit at once.</h3>
+
+<br>
+
+<p align="center">
+  <img src="docs/media/hero-sync.gif" alt="Geometry nodes edited in Blender, updated live in Revit">
+</p>
 
 Live bridge between Blender and Autodesk(R) Revit(R) software: the geometry
 modeled in Blender is visible inside Revit in real time, without becoming
@@ -19,12 +32,18 @@ by Autodesk, the Blender Foundation or Anthropic.
   Move, rotate or scale an object and Revit follows in real time. The
   preview is graphics only: nothing is added to the Revit model. Face and
   edge colors are set in the Blender panel.
+
+  ![Live preview: an object moved and rotated in Blender follows in Revit](docs/media/live-preview.gif)
 - **Selection pull, Revit -> Blender.** Select elements in Revit and press
   **Send Selection to Blender**: they arrive in the `FromRevit` collection,
   with openings in the right place. Sending again updates them in place.
+
+  ![A Revit selection pulled into Blender, then an object baked back as a family](docs/media/bake-family.gif)
 - **Snappable proxies.** Select edges of a Blender mesh and press
   **Create Proxy**: Revit gets real model lines (straight or arcs) that you
   can snap to and use as references.
+
+  ![A shell modeled in Blender, proxies in Revit used to place the columns](docs/media/proxy-shell-structure.gif)
 - **Bake.** When a shape is final, bake it into the Revit model as a
   **DirectShape** or as a loadable **family** (`BL_<name>`), with the Revit
   category of your choice. With **Bake together** checked, all the selected
@@ -32,7 +51,33 @@ by Autodesk, the Blender Foundation or Anthropic.
   replaces the previous version; **Remove Bake** deletes what Bilocus
   created.
 
+  ![A geometry nodes pavilion synced, then baked together into one family](docs/media/geomnodes-sync-blender.gif)
+
 Reference measurement: 385 objects and 1,042,674 triangles synced in 2.5 s.
+
+## What you can build
+
+Bilocus does not care how a shape was made. If Blender can show it as a
+mesh, Revit can receive it: as a live preview while you work, as proxies to
+snap to, as a DirectShape or a family when it is final.
+
+That opens Revit to everything Blender can model:
+
+- **Geometry nodes.** Parametric shells, facade patterns, lattices,
+  scattered elements: change a parameter in Blender and see the result in
+  the Revit model.
+- **Sculpting.** Terrain, organic forms, free surfaces that no Revit tool
+  can draw.
+- **Modifiers.** Arrays, bevels, booleans, subdivision, curves along paths.
+  Bilocus sends the evaluated shape: nothing needs to be applied first.
+- **Other add-ons.** Anything that produces a mesh in Blender can end up in
+  Revit the same way: [Tissue](https://github.com/alessandro-zomparelli/tissue)
+  for tessellations and lattices, [Sverchok](https://github.com/nortikin/sverchok)
+  for node-based parametric design, building and landscape generators,
+  scanned or photogrammetry models.
+
+Revit stays the place where the project is documented; Blender becomes the
+place where the shape is found.
 
 ## Why Bilocus?
 
