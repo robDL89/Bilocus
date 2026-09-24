@@ -49,15 +49,34 @@ by Autodesk, the Blender Foundation or Anthropic.
   category of your choice. With **Bake together** checked, all the selected
   objects go into one family named after the active object. Baking again
   replaces the previous version; **Remove Bake** deletes what Bilocus
-  created. For a DirectShape, **Smooth mesh (no volume)** bakes the object
-  as a Revit mesh instead of a solid: a subdivided surface reads smooth,
-  without the edges of its faces, and a closed one is still filled when cut
-  in section, but it has no volume, no joins, no voids and nothing to
-  dimension to.
+  created. A DirectShape can also arrive as a smooth mesh instead of a
+  solid: see [Smooth meshes or true solids](#smooth-meshes-or-true-solids).
 
   ![A geometry nodes pavilion synced, then baked together into one family](docs/media/geomnodes-sync-blender.gif)
 
 Reference measurement: 385 objects and 1,042,674 triangles synced in 2.5 s.
+
+## Smooth meshes or true solids
+
+A DirectShape bake can bring a shape into Revit in two ways, chosen per
+object with the **Smooth mesh (no volume)** checkbox:
+
+| | True solid (default) | Smooth mesh |
+|---|---|---|
+| Look in 3D | every face edge drawn: a subdivided surface shows its triangles | smooth, no face edges |
+| Cut and filled in section | yes | yes, if the mesh is closed |
+| Dimensions | yes | no |
+| Volume, joins, voids | yes | no |
+| Bake as a family | yes | no, a family needs a solid |
+
+Use the solid when the shape has to be measured and documented, the smooth
+mesh when it has to be seen: presentation views, renders, context.
+
+Below, a Voronoi shell built with
+[Sverchok](https://github.com/nortikin/sverchok) and baked twice side by
+side, then cut and dimensioned in section.
+
+![A Voronoi shell built with Sverchok, baked into Revit as a solid and as a smooth mesh, then cut and dimensioned in section](docs/media/sverchok-voronoi-shell.gif)
 
 ## What you can build
 
@@ -79,8 +98,6 @@ That opens Revit to everything Blender can model:
   for tessellations and lattices, [Sverchok](https://github.com/nortikin/sverchok)
   for node-based parametric design, building and landscape generators,
   scanned or photogrammetry models.
-
-![A Voronoi shell built with Sverchok, baked into Revit as a solid and as a smooth mesh, then cut and dimensioned in section](docs/media/sverchok-voronoi-shell.gif)
 
 Revit stays the place where the project is documented; Blender becomes the
 place where the shape is found.
