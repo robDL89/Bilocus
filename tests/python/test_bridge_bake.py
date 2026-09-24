@@ -82,7 +82,6 @@ def test_wire_constants_match_the_csharp_side():
     # this test is the only place where a divergence shows up without
     # opening Revit.
     assert bridge_bake.MAX_BAKE_OBJECTS == 500
-    assert bridge_bake.MAX_FAMILY_BAKE_OBJECTS == 50
     assert bridge_bake.MAX_BAKE_FACES == 2000000
     # BakeTarget.DirectShape / Family / All on the C# side
     assert bridge_bake.BAKE_TARGETS == ("directshape", "family")
@@ -461,23 +460,19 @@ def test_begin_header_rejects_an_unknown_target(target):
     assert "target" in str(error.value)
 
 
-def test_family_begin_header_accepts_exactly_the_family_maximum():
-    ids = ["id{}".format(index) for index in range(bridge_bake.MAX_FAMILY_BAKE_OBJECTS)]
+# A family bake has the same cap as any bake: above fifty objects the
+# Bake Family button asks for confirmation, but that is UI, not contract.
+def test_family_begin_header_accepts_exactly_the_bake_maximum():
+    ids = ["id{}".format(index) for index in range(bridge_bake.MAX_BAKE_OBJECTS)]
     header = bridge_bake.build_bake_begin_header(ids, target="family")
-    assert len(header["obj_ids"]) == bridge_bake.MAX_FAMILY_BAKE_OBJECTS
+    assert len(header["obj_ids"]) == bridge_bake.MAX_BAKE_OBJECTS
 
 
-def test_family_begin_header_rejects_one_over_the_family_maximum():
-    ids = ["id{}".format(index) for index in range(bridge_bake.MAX_FAMILY_BAKE_OBJECTS + 1)]
+def test_family_begin_header_rejects_one_over_the_bake_maximum():
+    ids = ["id{}".format(index) for index in range(bridge_bake.MAX_BAKE_OBJECTS + 1)]
     with pytest.raises(BridgeFramingError) as error:
         bridge_bake.build_bake_begin_header(ids, target="family")
-    assert "maximum of 50" in str(error.value)
-
-
-def test_directshape_begin_header_is_not_bound_by_the_family_maximum():
-    ids = ["id{}".format(index) for index in range(bridge_bake.MAX_FAMILY_BAKE_OBJECTS + 1)]
-    header = bridge_bake.build_bake_begin_header(ids, target="directshape")
-    assert len(header["obj_ids"]) == bridge_bake.MAX_FAMILY_BAKE_OBJECTS + 1
+    assert "maximum of 500" in str(error.value)
 
 
 def test_family_begin_header_still_rejects_duplicates():

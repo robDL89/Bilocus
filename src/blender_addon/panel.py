@@ -135,6 +135,27 @@ class BILOCUS_OT_bake_family(bpy.types.Operator):
                       "was one. Walls, floors, roofs, ceilings, stairs and "
                       "railings are not allowed".format(coll.COLLECTION_NAME))
 
+    def invoke(self, context, event):
+        # Only above the threshold: a dialog on every family bake teaches
+        # people to press "Bake" without reading. The count is the objects
+        # the bake would send, before the category filter: close enough
+        # for "this will take a while".
+        count = len(bake.bake_targets(context))
+        if count <= bake.FAMILY_BAKE_CONFIRM_ABOVE:
+            return self.execute(context)
+        message = ("You are about to bake {} objects as families. Each one "
+                   "is a family document opened, loaded and closed in Revit: "
+                   "it can take several minutes, and Revit stays busy until "
+                   "it is done. Continue?".format(count))
+        try:
+            return context.window_manager.invoke_confirm(
+                self, event, title="Bake Family", message=message,
+                confirm_text="Bake")
+        except TypeError:
+            # same fallback as Remove Bake, for versions without the new
+            # confirmation dialog
+            return context.window_manager.invoke_confirm(self, event)
+
     def execute(self, context):
         level, message = bake.bake_selected(context, "family", bake.together_of(context.scene))
         self.report({level}, message)

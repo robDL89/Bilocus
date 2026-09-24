@@ -469,7 +469,10 @@ one (otherwise `not_moved`). `accept_open` per object allows the `Sheet`
 outcome (open mesh); `Mesh`/`Mixed` do not yield a `Solid` and stay as
 DirectShape only. An object has in Revit either a DirectShape or a
 family: baking in the other mode removes the previous one (`switched`).
-At most 50 objects per family batch.
+At most 500 objects per batch, as for the DirectShape: each object is a
+family document opened, loaded and closed, so above 50 the Bake Family
+button asks for confirmation (it can take minutes, with Revit busy) instead
+of refusing. A script calling the operator is not asked.
 
 **Bake together, `host` on the batch** (family only). With the "Bake
 together" checkbox Blender sends `host`, the `obj_id` of the active object,

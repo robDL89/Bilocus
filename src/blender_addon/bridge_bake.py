@@ -126,11 +126,6 @@ def is_family_category(category):
 
 MAX_BAKE_OBJECTS = 500
 
-# Twin of MaxFamilyBakeObjects. Lower because every object of a family bake
-# opens, fills, loads and closes a family document: it is slow by
-# construction, and a batch of 500 would keep Revit blocked for minutes.
-MAX_FAMILY_BAKE_OBJECTS = 50
-
 # Shared ceiling for vert_count, face_count and tri_count. loop_count has no
 # ceiling of its own and does not need one: the rule "size-2 triangles per
 # polygon" forces loop_count == tri_count + 2 * face_count, so it is already
@@ -358,10 +353,9 @@ def build_bake_begin_header(obj_ids, target="directshape", host=None):
         raise BridgeFramingError(
             "bake_begin: unknown target {!r}, allowed values are {}".format(
                 target, ", ".join(BAKE_TARGETS)))
-    limit = MAX_FAMILY_BAKE_OBJECTS if target == "family" else MAX_BAKE_OBJECTS
     header = {
         "type": "bake_begin",
-        "obj_ids": _normalize_object_ids(obj_ids, "bake_begin", limit),
+        "obj_ids": _normalize_object_ids(obj_ids, "bake_begin", MAX_BAKE_OBJECTS),
         "target": target,
     }
     if host is not None:
