@@ -73,7 +73,8 @@ def register_properties():
         description="In DirectShape Bake, sends the object to Revit as a "
                     "mesh: drawn smooth, without the edges of its faces. "
                     "A closed mesh is still cut and filled in section, but "
-                    "it has no volume, no joins and no voids. Ignored by "
+                    "it has no volume, no joins, no voids and cannot be "
+                    "dimensioned. Ignored by "
                     "Family Bake, which needs a solid",
         default=False))
     # On the SCENE: it is a way of baking, not a property of an object.

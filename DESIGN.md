@@ -434,9 +434,10 @@ is kept if it gives a Solid or a Sheet. Same path for the family bake.
 false) asks the DirectShape bake for a mesh from the start: target
 `Mesh`, fallback `Salvage`, no retry. Revit draws a mesh DirectShape
 without the edges of its faces, so a subdivided surface reads smooth, at
-the price of the volume, the joins and the voids. A closed mesh is still
-cut and filled in a section view (checked in Revit 2025, side by side
-with the solid bake of the same shell). It is
+the price of the volume, the joins, the voids and the references a
+dimension needs: a mesh has no faces or edges Revit can dimension to. A
+closed mesh is still cut and filled in a section view (both checked in
+Revit 2025, side by side with the solid bake of the same shell). It is
 the look a closed shell had before the retry turned it into a Solid, now
 a choice instead of an accident. The family bake ignores it: a
 `FreeFormElement` needs a solid. A mesh counts in `as_mesh` like any

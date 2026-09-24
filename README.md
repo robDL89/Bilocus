@@ -52,7 +52,8 @@ by Autodesk, the Blender Foundation or Anthropic.
   created. For a DirectShape, **Smooth mesh (no volume)** bakes the object
   as a Revit mesh instead of a solid: a subdivided surface reads smooth,
   without the edges of its faces, and a closed one is still filled when cut
-  in section, but it has no volume, no joins and no voids.
+  in section, but it has no volume, no joins, no voids and nothing to
+  dimension to.
 
   ![A geometry nodes pavilion synced, then baked together into one family](docs/media/geomnodes-sync-blender.gif)
 
