@@ -1391,11 +1391,11 @@ namespace Bilocus.Revit.Net.Tests
         }
 
         [Fact]
-        public void BakeBegin_Family_OverTheFamilyCap_RepliesError()
+        public void BakeBegin_Family_OverTheCap_RepliesError()
         {
             MessageRouter router = new MessageRouter(new GeometryStore());
             Sink sink = new Sink();
-            string[] ids = new string[BakeBatch.MaxFamilyBakeObjects + 1];
+            string[] ids = new string[BakeBatch.MaxBakeObjects + 1];
             for (int i = 0; i < ids.Length; i++) { ids[i] = "obj-" + i; }
 
             BakeBeginWith(router, sink, "\"family\"", ids);
@@ -1403,16 +1403,18 @@ namespace Bilocus.Revit.Net.Tests
             Assert.Single(sink.Sent);
             string message = ErrorMessageOf(sink, 0);
             Assert.StartsWith("bake_begin:", message);
-            Assert.Contains("50", message);
+            Assert.Contains("500", message);
             Assert.False(router.HasOpenBakeBatch);
         }
 
+        // Fifty-one families: over the old family cap, now only a
+        // confirmation on the Blender side. Revit opens the batch.
         [Fact]
-        public void BakeBegin_Family_AtTheFamilyCap_OpensTheBatch()
+        public void BakeBegin_Family_OverFifty_OpensTheBatch()
         {
             MessageRouter router = new MessageRouter(new GeometryStore());
             Sink sink = new Sink();
-            string[] ids = new string[BakeBatch.MaxFamilyBakeObjects];
+            string[] ids = new string[51];
             for (int i = 0; i < ids.Length; i++) { ids[i] = "obj-" + i; }
 
             BakeBeginWith(router, sink, "\"family\"", ids);

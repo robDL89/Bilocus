@@ -246,42 +246,22 @@ namespace Bilocus.Revit.Net.Tests
             Assert.Contains("target", ex.Message);
         }
 
-        // Each object of a family bake opens and closes a family document:
-        // the cap is ten times lower.
+        // A family bake has the same cap as a DirectShape one: above fifty
+        // the Blender button asks for confirmation, Revit does not refuse.
         [Fact]
-        public void FamilyBatch_AcceptsExactlyTheFamilyCap()
+        public void FamilyBatch_HasTheSameCapAsDirectShape()
         {
             List<string> ids = new List<string>();
-            for (int i = 0; i < BakeBatch.MaxFamilyBakeObjects; i++) { ids.Add("obj-" + i); }
+            for (int i = 0; i < BakeBatch.MaxBakeObjects; i++) { ids.Add("obj-" + i); }
 
-            BakeBatch batch = new BakeBatch(ids, BakeTarget.Family);
+            Assert.Equal(BakeBatch.MaxBakeObjects, new BakeBatch(ids, BakeTarget.Family).AnnouncedIds.Count);
 
-            Assert.Equal(50, BakeBatch.MaxFamilyBakeObjects);
-            Assert.Equal(50, batch.AnnouncedIds.Count);
-        }
-
-        [Fact]
-        public void FamilyBatch_RejectsMoreThanTheFamilyCap()
-        {
-            List<string> ids = new List<string>();
-            for (int i = 0; i <= BakeBatch.MaxFamilyBakeObjects; i++) { ids.Add("obj-" + i); }
-
+            ids.Add("obj-over");
             ArgumentException ex = Assert.Throws<ArgumentException>(delegate
             {
                 new BakeBatch(ids, BakeTarget.Family);
             });
-            Assert.Contains("50", ex.Message);
-
-            // The same 51 pass in a DirectShape batch.
-            Assert.Equal(51, new BakeBatch(ids, BakeTarget.DirectShape).AnnouncedIds.Count);
-        }
-
-        [Fact]
-        public void MaxObjectsFor_GivesTheCapOfEachTarget()
-        {
-            Assert.Equal(BakeBatch.MaxBakeObjects, BakeBatch.MaxObjectsFor(BakeTarget.DirectShape));
-            Assert.Equal(BakeBatch.MaxFamilyBakeObjects, BakeBatch.MaxObjectsFor(BakeTarget.Family));
-            Assert.Throws<ArgumentException>(delegate { BakeBatch.MaxObjectsFor("all"); });
+            Assert.Contains("500", ex.Message);
         }
 
         // bake_remove does not use the batch but requires the same obj_ids:

@@ -31,13 +31,12 @@ namespace Bilocus.Revit.Bake
         // geometry: five hundred is already a selection that is not made by
         // mistake, and beyond that there is a risk of holding Revit still
         // with no way to interrupt it.
+        //
+        // Family bakes too. Each of their objects opens, fills, loads and
+        // closes a family document, so fifty is already minutes; the Blender
+        // button asks for confirmation above fifty instead of refusing,
+        // because a hundred plain boxes as families is a legitimate request.
         public const int MaxBakeObjects = 500;
-
-        // Cap for a family bake (Phase B2), the same value as the Blender
-        // side. Each object opens, fills, loads and closes a family
-        // document: it is slow by construction, and fifty is already
-        // minutes.
-        public const int MaxFamilyBakeObjects = 50;
 
         private readonly List<string> _announced;
         private readonly HashSet<string> _announcedSet;
@@ -79,7 +78,7 @@ namespace Bilocus.Revit.Bake
             }
 
             Target = parsed;
-            _announced = NormalizeObjectIds(announcedIds, MaxObjectsFor(parsed));
+            _announced = NormalizeObjectIds(announcedIds);
             _announcedSet = new HashSet<string>(_announced, StringComparer.Ordinal);
 
             if (host != null)
@@ -106,18 +105,6 @@ namespace Bilocus.Revit.Bake
         // BakeTarget.DirectShape or BakeTarget.Family. Decides who executes
         // the batch: BakeBuilder or FamilyBaker.
         public string Target { get; private set; }
-
-        // The object cap for a bake of that target. ArgumentException for a
-        // target that is not a bake (including "all").
-        public static int MaxObjectsFor(string target)
-        {
-            string parsed;
-            if (!BakeTarget.TryParse(target, out parsed))
-            {
-                throw new ArgumentException(string.Format("target '{0}' invalid for a bake", target));
-            }
-            return parsed == BakeTarget.Family ? MaxFamilyBakeObjects : MaxBakeObjects;
-        }
 
         // Normalized, in announcement order. Read-only: the announced ids are
         // exactly those of bake_begin and nothing else.
@@ -187,14 +174,6 @@ namespace Bilocus.Revit.Bake
         // overwriting the first.
         public static List<string> NormalizeObjectIds(IList<string> objectIds)
         {
-            return NormalizeObjectIds(objectIds, MaxBakeObjects);
-        }
-
-        // The same rules with a different cap: the family bake has a lower
-        // one. bake_remove stays at MaxBakeObjects even for families, because
-        // a removal does not open family documents.
-        public static List<string> NormalizeObjectIds(IList<string> objectIds, int maxObjects)
-        {
             if (objectIds == null) throw new ArgumentNullException("objectIds");
 
             if (objectIds.Count == 0)
@@ -202,11 +181,11 @@ namespace Bilocus.Revit.Bake
                 throw new ArgumentException("obj_ids empty: no object given");
             }
 
-            if (objectIds.Count > maxObjects)
+            if (objectIds.Count > MaxBakeObjects)
             {
                 throw new ArgumentException(string.Format(
                     "obj_ids with {0} objects, over the maximum of {1} per request",
-                    objectIds.Count, maxObjects));
+                    objectIds.Count, MaxBakeObjects));
             }
 
             List<string> normalized = new List<string>(objectIds.Count);

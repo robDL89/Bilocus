@@ -35,6 +35,13 @@ SMOOTH_MESH_PROPERTY = "bilocus_bake_smooth_mesh"
 
 NO_RESULT_MESSAGE = "no bake in this session"
 
+# Not a cap, and not part of the contract: above this many objects the Bake
+# Family button asks for confirmation. Every object of a family bake opens,
+# fills, loads and closes a family document, so fifty is already minutes of
+# a busy Revit; the user may still want 120 plain boxes as families, up to
+# bake.MAX_BAKE_OBJECTS like any bake.
+FAMILY_BAKE_CONFIRM_ABOVE = 50
+
 # Outcome of the last bake or the last removal, read by the panel. Lives in
 # the module and not in the scene: it is session information, it must not
 # be saved into the .blend. Same choice as bridge_sync.LAST_SYNC and
@@ -323,13 +330,13 @@ def bake_selected(context=None, target="directshape", together=False):
             return 'ERROR', "nothing to bake as a family - SKIPPED: {}".format(
                 "; ".join(skipped[:3]))
 
-    limit = bake.MAX_FAMILY_BAKE_OBJECTS if family else bake.MAX_BAKE_OBJECTS
-    if len(targets) > limit:
+    if len(targets) > bake.MAX_BAKE_OBJECTS:
         # check BEFORE evaluating any mesh: the message is written without
         # doing the expensive part, and Revit would reject the announcement
-        # anyway
-        return 'ERROR', "{} objects selected, the maximum for a {}bake is {}".format(
-            len(targets), "family " if family else "", limit)
+        # anyway. Above FAMILY_BAKE_CONFIRM_ABOVE the Bake Family button has
+        # already asked; a script calling the operator is not asked.
+        return 'ERROR', "{} objects selected, the maximum for a bake is {}".format(
+            len(targets), bake.MAX_BAKE_OBJECTS)
 
     warn_limit, reject_limit = sync.limits(context.scene)
 

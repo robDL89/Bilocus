@@ -841,18 +841,19 @@ def test_family(server, collection, sample, cube, addon_module):
     check(section[-1][1] == "label" and section[-1][2] == expected,
           "panel: last line of the Bake section is the family outcome")
 
-    # Family limit: 51 eligible objects rejected BEFORE any frame. They are
-    # removed right afterwards, so as not to change the rest of the test's
-    # counts.
-    many = [new_mesh_object("BakeZ_{:02d}".format(index), TRIANGLE_VERTS, [], [(0, 1, 2)],
-                            collection) for index in range(bake.MAX_FAMILY_BAKE_OBJECTS + 1)]
+    # Limit: one over MAX_BAKE_OBJECTS rejected BEFORE any frame, for a
+    # family too (above FAMILY_BAKE_CONFIRM_ABOVE the button only asks for
+    # confirmation). They are removed right afterwards, so as not to change
+    # the rest of the test's counts.
+    many = [new_mesh_object("BakeZ_{:03d}".format(index), TRIANGLE_VERTS, [], [(0, 1, 2)],
+                            collection) for index in range(bake.MAX_BAKE_OBJECTS + 1)]
     bpy.context.view_layer.update()
     before = len(server.types())
     select_only(many)
     level, message = bake_send.bake_selected(bpy.context, "family")
-    check(level == 'ERROR' and "the maximum for a family bake is 50" in message
+    check(level == 'ERROR' and "the maximum for a bake is 500" in message
           and len(server.types()) == before,
-          "family with 51 objects: rejected with no frame ({})".format(message))
+          "family with 501 objects: rejected with no frame ({})".format(message))
     for obj in many:
         data = obj.data
         bpy.data.objects.remove(obj, do_unlink=True)
