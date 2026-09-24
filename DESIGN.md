@@ -420,6 +420,16 @@ to ITS OWN Blender triangles. Same principle as the proxy tolerance: only
 Revit knows the real threshold. Triangles are made by Blender and not
 Revit because Blender correctly triangulates even concave n-gons.
 
+**One retry when the solid does not close.** Polygons that are planar
+only within the threshold can keep Revit from closing a solid: a
+subdivided, solidified shell, clean and closed, came out as a mesh with its
+quads whole and as a Solid with every polygon as triangles. Their
+deviations overlap the float32 noise of exactly planar quads, so no
+threshold separates the two. When the builder returns neither a Solid nor
+a Sheet (an open mesh already stitched), the polygons that are not exactly
+planar fall back to their triangles and the builder runs again; the retry
+is kept if it gives a Solid or a Sheet. Same path for the family bake.
+
 **Re-bake = replacement.** The `DirectShape` is found again via the
 Extensible Storage mark of the proxies (same schema, filtered by class).
 Same category: `SetShape`, same ElementId. Category changed: delete and

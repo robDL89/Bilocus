@@ -604,18 +604,14 @@ namespace Bilocus.Revit.Bake
                 bool flip = isHost
                     ? placement.FlipWinding
                     : RowMajorMatrix.Determinant3x3(member.Matrix) < 0;
-                BakeFaceSet faces = BakeFaceSet.Build(points, member.Mesh, _tolerance, flip);
+                BakeBuilder.BuiltShape shape;
+                string buildRefusal = BakeBuilder.BuildShape(points, member.Mesh, _tolerance, flip, out shape);
+                if (buildRefusal != null) { return buildRefusal; }
+                keepAlive.Add(shape);
 
-                TessellatedShapeBuilder builder = new TessellatedShapeBuilder();
-                keepAlive.Add(builder);
-
-                int skippedFaces;
-                string fillRefusal = BakeBuilder.FillBuilder(builder, faces, points, out skippedFaces);
-                if (fillRefusal != null) { return fillRefusal; }
-
-                builder.Build();
-                TessellatedShapeBuilderResult built = builder.GetBuildResult();
-                keepAlive.Add(built);
+                BakeFaceSet faces = shape.Faces;
+                int skippedFaces = shape.SkippedFaces;
+                TessellatedShapeBuilderResult built = shape.Result;
 
                 // Solid always, Sheet (open shell) only with the
                 // checkbox, Mesh/Mixed/Nothing never: they do not give a
