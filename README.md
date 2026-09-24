@@ -44,8 +44,6 @@ by Autodesk, the Blender Foundation or Anthropic.
   can snap to and use as references.
 
   ![A shell modeled in Blender, proxies in Revit used to place the columns](docs/media/proxy-shell-structure.gif)
-
-  ![Proxies generated from the edges of a Blender mesh](docs/media/proxy-generate.gif)
 - **Bake.** When a shape is final, bake it into the Revit model as a
   **DirectShape** or as a loadable **family** (`BL_<name>`), with the Revit
   category of your choice. With **Bake together** checked, all the selected
