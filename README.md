@@ -33,11 +33,15 @@ by Autodesk, the Blender Foundation or Anthropic.
 - **Selection pull, Revit -> Blender.** Select elements in Revit and press
   **Send Selection to Blender**: they arrive in the `FromRevit` collection,
   with openings in the right place. Sending again updates them in place.
+
+  ![A Revit selection pulled into Blender, then an object baked back as a family](docs/media/bake-family.gif)
 - **Snappable proxies.** Select edges of a Blender mesh and press
   **Create Proxy**: Revit gets real model lines (straight or arcs) that you
   can snap to and use as references.
 
   ![A shell modeled in Blender, proxies in Revit used to place the columns](docs/media/proxy-shell-structure.gif)
+
+  ![Proxies generated from the edges of a Blender mesh](docs/media/proxy-generate.gif)
 - **Bake.** When a shape is final, bake it into the Revit model as a
   **DirectShape** or as a loadable **family** (`BL_<name>`), with the Revit
   category of your choice. With **Bake together** checked, all the selected
@@ -45,7 +49,7 @@ by Autodesk, the Blender Foundation or Anthropic.
   replaces the previous version; **Remove Bake** deletes what Bilocus
   created.
 
-  ![Bake as DirectShape, then orbiting the result in Revit](docs/media/bake.gif)
+  ![A geometry nodes pavilion synced, then baked together into one family](docs/media/geomnodes-sync-blender.gif)
 
 Reference measurement: 385 objects and 1,042,674 triangles synced in 2.5 s.
 
