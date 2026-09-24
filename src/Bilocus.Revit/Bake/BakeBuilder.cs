@@ -195,67 +195,56 @@ namespace Bilocus.Revit.Bake
                 // normals.
                 double[] world = RowMajorMatrix.TransformPoints(request.Matrix, request.Mesh.Positions);
                 bool flip = RowMajorMatrix.Determinant3x3(request.Matrix) < 0;
-                BakeFaceSet faces = BakeFaceSet.Build(world, request.Mesh, planarToleranceMeters, flip);
 
-                // One builder per object with a SINGLE connected face set: a
-                // Blender object is one mesh, and the builder decides solid
-                // or mesh for the whole set. Builder and result stay alive
-                // until after SetShape: the geometric objects come from
-                // there, and there is no reason to find out whether Revit
-                // ties them to the result's lifetime.
-                using (TessellatedShapeBuilder builder = new TessellatedShapeBuilder())
+                // Builder and result stay alive until after SetShape: the
+                // geometric objects come from there, and there is no reason
+                // to find out whether Revit ties them to the result's
+                // lifetime.
+                BuiltShape shape;
+                string buildRefusal = BuildShape(world, request.Mesh, planarToleranceMeters, flip, out shape);
+                if (buildRefusal != null)
                 {
-                    int skippedFaces;
-                    string fillRefusal = FillBuilder(builder, faces, world, out skippedFaces);
-                    if (fillRefusal != null)
+                    result.AddFailure(name, buildRefusal);
+                    return;
+                }
+
+                using (shape)
+                {
+                    TessellatedShapeBuilderOutcome outcome = shape.Result.Outcome;
+                    if (outcome == TessellatedShapeBuilderOutcome.Nothing)
                     {
-                        result.AddFailure(name, fillRefusal);
+                        result.AddFailure(name, "Revit did not build any geometry from the received faces");
                         return;
                     }
 
-                    // Raises InvalidOperationException if the faces are so
-                    // inconsistent they cannot be used, or if there are too
-                    // many facets: ends up in the catch below, with its
-                    // reason.
-                    builder.Build();
-
-                    using (TessellatedShapeBuilderResult built = builder.GetBuildResult())
+                    // Can only be called once: subsequent calls raise.
+                    IList<GeometryObject> geometry = shape.Result.GetGeometricalObjects();
+                    if (geometry == null || geometry.Count == 0)
                     {
-                        TessellatedShapeBuilderOutcome outcome = built.Outcome;
-                        if (outcome == TessellatedShapeBuilderOutcome.Nothing)
-                        {
-                            result.AddFailure(name, "Revit did not build any geometry from the received faces");
-                            return;
-                        }
-
-                        // Can only be called once: subsequent calls raise.
-                        IList<GeometryObject> geometry = built.GetGeometricalObjects();
-                        if (geometry == null || geometry.Count == 0)
-                        {
-                            result.AddFailure(name, "the builder did not return geometric objects (outcome "
-                                + outcome + ")");
-                            return;
-                        }
-
-                        WriteKind kind;
-                        int switched;
-                        string writeRefusal = WriteInTransaction(
-                            document, request, categoryId, geometry, out kind, out switched);
-                        if (writeRefusal != null)
-                        {
-                            result.AddFailure(name, writeRefusal);
-                            return;
-                        }
-
-                        // as_mesh means "did not come out as a closed
-                        // solid". With AnyGeometry an open mesh comes out as
-                        // a Sheet, not as a Mesh: to whoever reads the panel
-                        // it is the same news (no volume), and counting it
-                        // separately would require a field the contract does
-                        // not have.
-                        bool notSolid = outcome != TessellatedShapeBuilderOutcome.Solid;
-                        tally.Add(kind, notSolid, faces.PlanarCount, faces.TriangulatedCount, skippedFaces, switched);
+                        result.AddFailure(name, "the builder did not return geometric objects (outcome "
+                            + outcome + ")");
+                        return;
                     }
+
+                    WriteKind kind;
+                    int switched;
+                    string writeRefusal = WriteInTransaction(
+                        document, request, categoryId, geometry, out kind, out switched);
+                    if (writeRefusal != null)
+                    {
+                        result.AddFailure(name, writeRefusal);
+                        return;
+                    }
+
+                    // as_mesh means "did not come out as a closed
+                    // solid". With AnyGeometry an open mesh comes out as
+                    // a Sheet, not as a Mesh: to whoever reads the panel
+                    // it is the same news (no volume), and counting it
+                    // separately would require a field the contract does
+                    // not have.
+                    bool notSolid = outcome != TessellatedShapeBuilderOutcome.Solid;
+                    tally.Add(kind, notSolid, shape.Faces.PlanarCount, shape.Faces.TriangulatedCount,
+                        shape.SkippedFaces, switched);
                 }
             }
             catch (Exception ex)
@@ -297,14 +286,126 @@ namespace Bilocus.Revit.Bake
         }
 
         // Fills the builder with the object's faces. Returns the rejection
+        // What BuildShape hands back: the builder, its result and the face
+        // set it was filled with. The caller owns them: the DirectShape bake
+        // disposes them after SetShape, the family bake keeps them alive
+        // until the FreeFormElement exists.
+        internal sealed class BuiltShape : IDisposable
+        {
+            public TessellatedShapeBuilder Builder;
+            public TessellatedShapeBuilderResult Result;
+            public BakeFaceSet Faces;
+            public int SkippedFaces;
+
+            public void Dispose()
+            {
+                if (Result != null) { Result.Dispose(); }
+                if (Builder != null) { Builder.Dispose(); }
+            }
+        }
+
+        // One object's geometry through the builder, with ONE retry.
+        //
+        // The planarity tolerance keeps whole the polygons that are planar
+        // only within it. Found on subdivided surfaces (a Subdivision Surface
+        // on a solidified shell): closed, manifold, no self-intersections,
+        // and Revit fell back to a mesh with its quads whole; the same mesh
+        // with every polygon as triangles came out as a Solid. No tighter
+        // threshold fixes it: the deviations of those quads start at 1e-9 m,
+        // below the float32 noise of exactly planar quads (a torus far from
+        // the origin strays up to 4e-8 m). So the first build is the usual
+        // one, a cube stays six squares, and when it does not come out as a
+        // Solid the polygons that are not EXACTLY planar go to Blender's
+        // triangles and the builder runs again. Only the objects that need
+        // it pay for the second build.
+        //
+        // No retry on a Sheet: that is an open mesh Revit already stitched,
+        // and a second build of a large terrain would change nothing. None
+        // either when tolerance zero would triangulate nothing more. The
+        // retry is kept only if it comes out as a Solid or a Sheet: a mesh
+        // that stays a mesh keeps its whole faces.
+        //
+        // Returns the reason if no face is left, otherwise null. Raises like
+        // TessellatedShapeBuilder.Build on the FIRST build; an exception in
+        // the retry only discards the retry.
+        internal static string BuildShape(double[] points, BakeMeshPayload mesh,
+            double planarToleranceMeters, bool flipWinding, out BuiltShape shape)
+        {
+            BakeFaceSet faces = BakeFaceSet.Build(points, mesh, planarToleranceMeters, flipWinding);
+            string refusal = BuildOnce(faces, points, out shape);
+            if (refusal != null) { return refusal; }
+
+            TessellatedShapeBuilderOutcome outcome = shape.Result.Outcome;
+            if (outcome == TessellatedShapeBuilderOutcome.Solid
+                || outcome == TessellatedShapeBuilderOutcome.Sheet)
+            {
+                return null;
+            }
+
+            BakeFaceSet exact = BakeFaceSet.Build(points, mesh, 0.0, flipWinding);
+            if (exact.TriangulatedCount == faces.TriangulatedCount) { return null; }
+
+            BuiltShape retry = null;
+            try
+            {
+                if (BuildOnce(exact, points, out retry) != null) { return null; }
+                TessellatedShapeBuilderOutcome retried = retry.Result.Outcome;
+                if (retried != TessellatedShapeBuilderOutcome.Solid
+                    && retried != TessellatedShapeBuilderOutcome.Sheet)
+                {
+                    return null;
+                }
+                shape.Dispose();
+                shape = retry;
+                retry = null;
+                return null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+            finally
+            {
+                if (retry != null) { retry.Dispose(); }
+            }
+        }
+
+        private static string BuildOnce(BakeFaceSet faces, double[] points, out BuiltShape shape)
+        {
+            shape = new BuiltShape { Faces = faces, Builder = new TessellatedShapeBuilder() };
+            try
+            {
+                string refusal = FillBuilder(shape.Builder, faces, points, out shape.SkippedFaces);
+                if (refusal != null)
+                {
+                    shape.Dispose();
+                    shape = null;
+                    return refusal;
+                }
+
+                // Raises InvalidOperationException if the faces are so
+                // inconsistent they cannot be used, or if there are too
+                // many facets.
+                shape.Builder.Build();
+                shape.Result = shape.Builder.GetBuildResult();
+                return null;
+            }
+            catch
+            {
+                if (shape != null) { shape.Dispose(); }
+                shape = null;
+                throw;
+            }
+        }
+
         // reason if no face is left, otherwise null.
         //
-        // Internal and not private since Phase B2: FamilyBaker also uses it,
-        // passing points in FAMILY coordinates instead of world ones. For the
-        // builder it is the same work (meters in, feet inside, the same
-        // skipped faces and the same target/fallback choice), and a second
-        // copy would diverge at the first fix.
-        internal static string FillBuilder(
+        // FamilyBaker reaches it through BuildShape, passing points in FAMILY
+        // coordinates instead of world ones. For the builder it is the same
+        // work (meters in, feet inside, the same skipped faces and the same
+        // target/fallback choice), and a second copy would diverge at the
+        // first fix.
+        private static string FillBuilder(
             TessellatedShapeBuilder builder, BakeFaceSet faces, double[] worldPoints, out int skippedFaces)
         {
             skippedFaces = 0;

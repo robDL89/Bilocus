@@ -89,6 +89,25 @@ namespace Bilocus.Geometry.Tests
             Assert.Equal(2, faces.PlanarCount);
         }
 
+        // Tolerance zero is the bake's retry (BakeBuilder.BuildShape): a quad
+        // off its plane by a micron, whole with the usual tolerance, goes to
+        // triangles; the exactly planar golden quad stays whole.
+        [Fact]
+        public void ToleranceZero_TriangulatesTheNearlyPlanarQuadOnly()
+        {
+            float[] positions = BakeMeshBytes.GoldenPositions();
+            positions[2 * 3 + 2] = 1e-6f;
+            double[] points = ToDouble(positions);
+            BakeMeshPayload nearlyPlanar = BakeMeshBytes.Parse(
+                positions, BakeMeshBytes.GoldenFaceSizes(), BakeMeshBytes.GoldenFaceVertices(),
+                BakeMeshBytes.GoldenTriVertices(), BakeMeshBytes.GoldenTriFaces());
+            BakeMeshPayload planar = BakeMeshBytes.ParseGolden();
+
+            Assert.Equal(0, BakeFaceSet.Build(points, nearlyPlanar, Tolerance, false).TriangulatedCount);
+            Assert.Equal(1, BakeFaceSet.Build(points, nearlyPlanar, 0.0, false).TriangulatedCount);
+            Assert.Equal(0, BakeFaceSet.Build(ToDouble(planar.Positions), planar, 0.0, false).TriangulatedCount);
+        }
+
         // Planarity is measured on the WORLD points passed in, not on the
         // payload's local positions: that is where a non-uniform scale can
         // change the deviation.
