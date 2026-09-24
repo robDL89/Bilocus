@@ -213,9 +213,7 @@ It is entirely voluntary and gives nothing extra in return.
 ## Credits
 
 Bilocus was developed by Roberto Dolfini together with Claude Code,
-Anthropic's coding assistant, in vibe coding: Roberto defined the project,
-made the decisions and verified every phase in real Revit and Blender;
-Claude wrote most of the code, the tests and the documentation.
+Anthropic's coding assistant, in vibe coding.
 
 ## Terms of use
 
