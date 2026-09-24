@@ -5,9 +5,9 @@
   </picture>
 </h1>
 
-<br>
-
 <h3 align="center">Model in Blender, see it live in Revit.</h3>
+
+<br>
 
 <p align="center">
   <img src="docs/media/hero-sync.gif" alt="Geometry nodes edited in Blender, updated live in Revit">
