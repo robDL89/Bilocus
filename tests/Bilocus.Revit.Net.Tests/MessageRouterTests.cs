@@ -1476,6 +1476,49 @@ namespace Bilocus.Revit.Net.Tests
             Assert.Equal(new List<string> { "obj-1" }, router.TakePendingBakes()[0].MissingIds);
         }
 
+        // smooth_mesh: same rules as accept_open, for the DirectShape bake.
+        // Absent is false, which is also what a Blender add-on older than
+        // the checkbox sends.
+        [Theory]
+        [InlineData("\"smooth_mesh\": true", true)]
+        [InlineData("\"smooth_mesh\": false", false)]
+        [InlineData("\"accept_open\": false", false)]
+        public void BakeMesh_WithSmoothMesh_KeepsIt(string field, bool expected)
+        {
+            MessageRouter router = new MessageRouter(new GeometryStore());
+            Sink sink = new Sink();
+
+            BakeBegin(router, sink, "obj-1");
+            Send(router, sink, BakeGolden.MeshHeaderWith("obj-1", field), BakeGolden.Payload());
+            BakeEnd(router, sink);
+
+            Assert.Empty(sink.Sent);
+            Assert.Equal(expected, router.TakePendingBakes()[0].Requests[0].SmoothMesh);
+        }
+
+        // A 1 read as true would throw away the volume of an object that
+        // was meant to stay a solid.
+        [Theory]
+        [InlineData("\"smooth_mesh\": \"true\"")]
+        [InlineData("\"smooth_mesh\": 1")]
+        [InlineData("\"smooth_mesh\": null")]
+        public void BakeMesh_WithSmoothMeshOfTheWrongType_RepliesErrorAndEndsUpMissing(string field)
+        {
+            MessageRouter router = new MessageRouter(new GeometryStore());
+            Sink sink = new Sink();
+
+            BakeBegin(router, sink, "obj-1");
+            Send(router, sink, BakeGolden.MeshHeaderWith("obj-1", field), BakeGolden.Payload());
+
+            Assert.Single(sink.Sent);
+            string message = ErrorMessageOf(sink, 0);
+            Assert.StartsWith("bake_mesh:", message);
+            Assert.Contains("smooth_mesh", message);
+
+            BakeEnd(router, sink);
+            Assert.Equal(new List<string> { "obj-1" }, router.TakePendingBakes()[0].MissingIds);
+        }
+
         // The bake and the preview are two separate paths: a baked object
         // does not enter the GeometryStore, and does not become a proxy
         // request.

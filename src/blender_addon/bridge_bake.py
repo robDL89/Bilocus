@@ -377,7 +377,7 @@ def build_bake_begin_header(obj_ids, target="directshape", host=None):
 
 def build_bake_mesh_header(obj_id, name, category, matrix,
                            vert_count, face_count, loop_count, tri_count,
-                           accept_open=False):
+                           accept_open=False, smooth_mesh=False):
     """The bake_mesh header. The counts must be those of the sequences
     passed to pack_bake_payload (see its docstring).
 
@@ -387,15 +387,20 @@ def build_bake_mesh_header(obj_id, name, category, matrix,
 
     accept_open says whether the object can become a family even as an open
     shell. Revit ignores it in the directshape batch, but it is ALWAYS
-    written: the header is the same in both modes."""
+    written: the header is the same in both modes.
+
+    smooth_mesh asks the DirectShape bake for a Revit mesh instead of a
+    solid: drawn without edges, no volume. The family bake ignores it, a
+    family needs a solid. Always written, like accept_open."""
     normalized = _normalize_object_id(obj_id)
 
     # Only a real bool. A 1 or a "true" on the wire is a content error for
     # Revit, and a silent bool(x) here would turn even the string "False"
     # of a badly read property into True.
-    if not isinstance(accept_open, bool):
-        raise BridgeFramingError(
-            "accept_open must be a boolean, is {!r}".format(accept_open))
+    for field, value in (("accept_open", accept_open), ("smooth_mesh", smooth_mesh)):
+        if not isinstance(value, bool):
+            raise BridgeFramingError(
+                "{} must be a boolean, is {!r}".format(field, value))
 
     label = name if isinstance(name, str) else ""
     label = label.strip()
@@ -444,6 +449,7 @@ def build_bake_mesh_header(obj_id, name, category, matrix,
         "loop_count": loop_count,
         "tri_count": tri_count,
         "accept_open": accept_open,
+        "smooth_mesh": smooth_mesh,
     }
 
 

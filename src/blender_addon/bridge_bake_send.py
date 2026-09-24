@@ -31,6 +31,7 @@ import bridge_sync as sync
 CATEGORY_PROPERTY = "bilocus_bake_category"
 TOGETHER_PROPERTY = "bilocus_bake_together"
 ACCEPT_OPEN_PROPERTY = "bilocus_bake_accept_open"
+SMOOTH_MESH_PROPERTY = "bilocus_bake_smooth_mesh"
 
 NO_RESULT_MESSAGE = "no bake in this session"
 
@@ -64,6 +65,17 @@ def register_properties():
                     "Revit becomes a shell with no volume. A non-manifold "
                     "mesh is still rejected. Ignored by DirectShape Bake",
         default=False))
+    # Per-object too: a shell shown smooth in a render view and a column
+    # that must be cut in section can sit in the same scene. Off by
+    # default: losing the volume must be a choice.
+    setattr(bpy.types.Object, SMOOTH_MESH_PROPERTY, bpy.props.BoolProperty(
+        name="Smooth mesh (no volume)",
+        description="In DirectShape Bake, sends the object to Revit as a "
+                    "mesh: drawn smooth, without the edges of its faces. "
+                    "A closed mesh is still cut and filled in section, but "
+                    "it has no volume, no joins and no voids. Ignored by "
+                    "Family Bake, which needs a solid",
+        default=False))
     # On the SCENE: it is a way of baking, not a property of an object.
     setattr(bpy.types.Scene, TOGETHER_PROPERTY, bpy.props.BoolProperty(
         name="Bake together",
@@ -74,7 +86,7 @@ def register_properties():
 
 
 def unregister_properties():
-    for name in (ACCEPT_OPEN_PROPERTY, CATEGORY_PROPERTY):
+    for name in (SMOOTH_MESH_PROPERTY, ACCEPT_OPEN_PROPERTY, CATEGORY_PROPERTY):
         if hasattr(bpy.types.Object, name):
             delattr(bpy.types.Object, name)
     if hasattr(bpy.types.Scene, TOGETHER_PROPERTY):
@@ -100,6 +112,12 @@ def accept_open_of(obj):
     something else ever arrives it must be build_bake_mesh_header that
     rejects it, failing only that object with the reason."""
     return getattr(obj, ACCEPT_OPEN_PROPERTY, False)
+
+
+def smooth_mesh_of(obj):
+    """The object's "smooth mesh" checkbox, False if the property is not
+    registered. Same no-bool() reasoning as accept_open_of."""
+    return getattr(obj, SMOOTH_MESH_PROPERTY, False)
 
 
 # --- who is sent ------------------------------------------------------------------
@@ -474,7 +492,7 @@ def _prepare_mesh(obj, obj_id, depsgraph, reject_limit):
         header = bake.build_bake_mesh_header(
             obj_id, obj.name, category_of(obj), obj.matrix_world,
             len(positions) // 3, len(face_sizes), len(face_vertices), len(tri_faces),
-            accept_open_of(obj))
+            accept_open_of(obj), smooth_mesh_of(obj))
     except Exception as error:
         return str(error), None, None
     return None, header, payload
@@ -538,10 +556,11 @@ def apply_category_to_selected(context=None):
     active object onto all other selected mesh objects. Returns how many it
     changed: zero even when there is no active mesh to copy from.
 
-    The two properties travel together because together they describe what
+    The properties travel together because together they describe what
     the object becomes in Revit: copying only the category would leave a
     selection of objects half accepted and half rejected as an open shell,
-    and it would only be discovered from the bake's outcome.
+    or half smooth and half solid, and it would only be discovered from
+    the bake's outcome.
 
     Does not filter on ToRevit: the category is a property of the object,
     and assigning it before adding it to the collection is a legitimate
@@ -555,12 +574,14 @@ def apply_category_to_selected(context=None):
 
     value = category_of(active)
     accept_open = accept_open_of(active)
+    smooth_mesh = smooth_mesh_of(active)
     count = 0
     for obj in _selected(context):
         if obj.type != 'MESH' or obj == active:
             continue
         setattr(obj, CATEGORY_PROPERTY, value)
         setattr(obj, ACCEPT_OPEN_PROPERTY, accept_open)
+        setattr(obj, SMOOTH_MESH_PROPERTY, smooth_mesh)
         count += 1
     return count
 

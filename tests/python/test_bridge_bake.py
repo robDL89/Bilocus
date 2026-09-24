@@ -600,6 +600,7 @@ def test_mesh_header_has_the_fields_of_the_contract():
         "loop_count": 7,
         "tri_count": 3,
         "accept_open": False,
+        "smooth_mesh": False,
     }
 
 
@@ -607,19 +608,25 @@ def test_mesh_header_writes_accept_open_when_true():
     assert mesh_header(accept_open=True)["accept_open"] is True
 
 
-def test_mesh_header_accept_open_defaults_to_false_in_the_old_call():
-    # the Phase B positional call, without accept_open, must stay valid:
-    # bridge_bake_send.py and the smoke test use it that way
+def test_mesh_header_writes_smooth_mesh_when_true():
+    assert mesh_header(smooth_mesh=True)["smooth_mesh"] is True
+
+
+def test_mesh_header_flags_default_to_false_in_the_old_call():
+    # the Phase B positional call, without accept_open and smooth_mesh,
+    # must stay valid: the smoke test uses it that way
     header = bridge_bake.build_bake_mesh_header(
         "abc123", "Cube", "OST_GenericModel", IDENTITY_ROWS, 5, 2, 7, 3)
     assert header["accept_open"] is False
+    assert header["smooth_mesh"] is False
 
 
+@pytest.mark.parametrize("field", ["accept_open", "smooth_mesh"])
 @pytest.mark.parametrize("value", [1, 0, "true", "False", None, 1.0])
-def test_mesh_header_rejects_accept_open_that_is_not_a_bool(value):
+def test_mesh_header_rejects_a_flag_that_is_not_a_bool(field, value):
     with pytest.raises(BridgeFramingError) as error:
-        mesh_header(accept_open=value)
-    assert "accept_open" in str(error.value)
+        mesh_header(**{field: value})
+    assert field in str(error.value)
 
 
 def test_mesh_header_accepts_an_already_flat_matrix():

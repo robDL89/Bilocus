@@ -50,8 +50,14 @@ namespace Bilocus.Revit.Bake
         // does not carry it.
         public bool AcceptOpen { get; private set; }
 
+        // "Smooth mesh (no volume)". Only counts in the DirectShape bake: the
+        // builder is asked for a mesh, drawn without edges and with no
+        // volume. The family bake ignores it, a FreeFormElement needs a
+        // solid. False if the message does not carry it.
+        public bool SmoothMesh { get; private set; }
+
         private BakeMeshRequest(string objectId, string name, string category, float[] matrix,
-            BakeMeshPayload mesh, bool acceptOpen)
+            BakeMeshPayload mesh, bool acceptOpen, bool smoothMesh)
         {
             ObjectId = objectId;
             Name = name;
@@ -59,6 +65,7 @@ namespace Bilocus.Revit.Bake
             Matrix = matrix;
             Mesh = mesh;
             AcceptOpen = acceptOpen;
+            SmoothMesh = smoothMesh;
         }
 
         // The Phase B Parse: AcceptOpen false.
@@ -80,7 +87,8 @@ namespace Bilocus.Revit.Bake
         // wrong category must not require reading megabytes of geometry to
         // be reported.
         public static BakeMeshRequest Parse(string objectId, string name, string category, float[] matrix,
-            int vertCount, int faceCount, int loopCount, int triCount, byte[] payload, bool acceptOpen)
+            int vertCount, int faceCount, int loopCount, int triCount, byte[] payload, bool acceptOpen,
+            bool smoothMesh = false)
         {
             // Without identity there is neither replacement nor removal:
             // better to reject the message than to leave a DirectShape in the
@@ -124,7 +132,8 @@ namespace Bilocus.Revit.Bake
 
             // The request stays pending until it is drained: a copy, so a
             // caller that reuses its array does not move the object.
-            return new BakeMeshRequest(normalizedId, label, category, (float[])matrix.Clone(), mesh, acceptOpen);
+            return new BakeMeshRequest(
+                normalizedId, label, category, (float[])matrix.Clone(), mesh, acceptOpen, smoothMesh);
         }
     }
 }
