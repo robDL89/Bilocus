@@ -71,9 +71,10 @@ def register_properties():
     setattr(bpy.types.Object, SMOOTH_MESH_PROPERTY, bpy.props.BoolProperty(
         name="Smooth mesh (no volume)",
         description="In DirectShape Bake, sends the object to Revit as a "
-                    "mesh: drawn smooth, without the edges of its faces, "
-                    "but with no volume, no cut pattern in section and no "
-                    "joins. Ignored by Family Bake, which needs a solid",
+                    "mesh: drawn smooth, without the edges of its faces. "
+                    "A closed mesh is still cut and filled in section, but "
+                    "it has no volume, no joins and no voids. Ignored by "
+                    "Family Bake, which needs a solid",
         default=False))
     # On the SCENE: it is a way of baking, not a property of an object.
     setattr(bpy.types.Scene, TOGETHER_PROPERTY, bpy.props.BoolProperty(
