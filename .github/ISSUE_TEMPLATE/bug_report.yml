@@ -1,0 +1,62 @@
+name: Bug report
+description: Something does not work as the README describes
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report it. Please check the
+        [Known limits](https://github.com/robDL89/Bilocus#known-limits) first:
+        some behaviors are by design.
+
+        Do not attach project files or screenshots that contain confidential data.
+  - type: dropdown
+    id: revit
+    attributes:
+      label: Revit version
+      options:
+        - "2024"
+        - "2025"
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: blender
+    attributes:
+      label: Blender version
+      options:
+        - "5.1"
+        - "5.2"
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: bilocus
+    attributes:
+      label: Bilocus version
+      description: The release you downloaded, for example 0.1.0.
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. In Blender, ...
+        2. In Revit, ...
+  - type: textarea
+    id: status
+    attributes:
+      label: Status and messages
+      description: |
+        In Revit: the text of the Bilocus > Status dialog.
+        In Blender: the status line of the Bilocus panel, and any [Bilocus] line
+        from Window > Toggle System Console.
+      render: text

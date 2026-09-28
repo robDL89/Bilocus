@@ -17,12 +17,12 @@ Live bridge between Blender and Autodesk(R) Revit(R) software: the geometry
 modeled in Blender is visible inside Revit in real time, without becoming
 an element of the document.
 
-The idea is have something that works like the Grasshopper preview in Rhino.Inside. 
-It is not exactly an exporter nor a file converter, it is a live channel between two
+The idea is to have something that works like the Grasshopper preview in Rhino.Inside.
+It is not exactly an exporter or a file converter: it is a live channel between two
 separate programs running on the same computer.
 
-This is a free and open source. Independent project, not affiliated with nor endorsed
-by Autodesk and the Blender Foundation.
+Bilocus is a free and open source independent project, not affiliated with nor
+endorsed by Autodesk or the Blender Foundation.
 
 
 ## What it does
@@ -45,7 +45,8 @@ by Autodesk and the Blender Foundation.
   ![A Revit selection pulled into Blender, then an object baked back as a family](docs/media/bake-family.gif)
 - **Snappable proxies.** Select edges of a Blender mesh in edit mode, go back to object mode and press
   **Create Proxy**: Revit gets real model lines (straight or arcs) that you
-  can snap to and use as references.
+  can snap to and use as references. Remove them all with **Remove Proxy
+  Lines** in the Revit ribbon.
 
   ![A shell modeled in Blender, proxies in Revit used to place the columns](docs/media/proxy-shell-structure.gif)
 - **Bake.** When a shape is final, bake it into the Revit model as a
@@ -85,7 +86,7 @@ side, then cut and dimensioned in section.
 
 ## What you can build
 
-Bilocus is a bridge, if Blender can show it as a mesh, Revit can receive it: as a live preview while you work, as proxies to
+Bilocus is a bridge: if Blender can show it as a mesh, Revit can receive it, as a live preview while you work, as proxies to
 snap to, as a DirectShape or a family when it is final.
 
 That opens Revit to everything Blender can model:
@@ -101,7 +102,7 @@ That opens Revit to everything Blender can model:
   Revit the same way, for example: [Tissue](https://github.com/alessandro-zomparelli/tissue)
   for tessellations and lattices, [Sverchok](https://github.com/nortikin/sverchok)
   for node-based parametric design, building and landscape generators,
-  scanned or photogrammetry models, even geometry built with [Bonsai](https://github.com/IfcOpenShell/bonsai_unstable_repo) can be brought in.
+  scanned or photogrammetry models, even geometry built with [Bonsai](https://bonsaibim.org) can be brought in.
 
 
 ## Why Bilocus?
@@ -143,6 +144,9 @@ Download the zip files from the latest
 3. Start Revit and accept the add-in when Revit asks. A **Bilocus** tab
    appears in the ribbon.
 
+If Revit reports that it cannot load the add-in, right-click the downloaded
+zip, open *Properties*, tick *Unblock*, then unzip it again.
+
 **Blender add-on**
 
 1. In Blender open *Edit > Preferences > Add-ons*.
@@ -170,9 +174,17 @@ the connection drops, the panel says so.
   to, scheduled, printed or exported, and it does not cast shadows. When
   you need any of that, use **Create Proxy** or **Bake**.
 - The preview shows only in 3D views. For plan or elevation, use a 3D view
-  with an orthographic top or front orientation. (currently studying how to bring proper preview in plan and section views)
+  with an orthographic top or front orientation. (A proper preview in plan
+  and section views is being studied.)
 - Blender and Revit share Revit's internal origin. Project Base Point and
   Survey Point are not used: keep the model near the origin.
+- Keep the Blender scene **Unit Scale** at 1.0 (*Scene Properties > Units*):
+  Bilocus reads one Blender unit as one meter. The length unit shown in
+  Blender (m, cm, mm) does not matter.
+- One Blender at a time. A second Blender that connects while the first is
+  still connected gets no answer from Revit (its panel never shows
+  *handshake ok*) and can freeze on Sync: press **Disconnect** in the first
+  one before connecting another.
 - Sync refuses to run while an object is in Edit Mode: press Tab first.
 - In Blender, `Shift+D` also copies the Bilocus identifier of an object.
   Bilocus detects the duplicate at the next Sync and gives it a new one. Keep an eye on the `ToRevit` collection because that's

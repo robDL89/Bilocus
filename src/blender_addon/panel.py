@@ -207,8 +207,8 @@ class BILOCUS_OT_apply_bake_category(bpy.types.Operator):
     bl_idname = "bilocus.apply_bake_category"
     bl_label = "Apply to Selected"
     bl_description = ("Copies the Revit category and the 'Accept open solid' "
-                      "checkbox of the active object to every selected mesh "
-                      "object")
+                      "and 'Smooth mesh' checkboxes of the active object to "
+                      "every selected mesh object")
     # UNDO because it changes data saved in the .blend, Ctrl+Z must restore
     # the previous categories, like any other change to objects
     bl_options = {'REGISTER', 'UNDO'}

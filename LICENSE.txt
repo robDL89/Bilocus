@@ -1,8 +1,10 @@
 Bilocus
 Copyright (c) 2026 Roberto Dolfini
 
-Bilocus was conceived by Roberto Dolfini, holder of the rights, and
-developed together with Claude Code (Anthropic) in vibe coding.
+Bilocus was conceived and designed by Roberto Dolfini, holder of the
+rights, and built together with Claude Code (Anthropic). Architecture,
+design decisions, testing and review were human-driven; the code was
+written and verified together.
 
 Bilocus is made of two programs that run as separate processes and talk to
 each other over a local TCP socket. Each is released under its own license.

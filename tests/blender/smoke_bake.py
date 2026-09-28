@@ -645,11 +645,13 @@ def test_end_to_end(scene, collection, sample, addon_module):
     check(operator_active(lines, "bilocus.bake_family"),
           "panel: Family Bake active under the same conditions")
     order = [line[2] for line in section if line[1] in ("prop", "operator")]
-    expected_order = ["Category = OST_Walls", "Accept non-closed solid = False",
-                      "[Apply to selected] bridge.apply_bake_category",
-                      "[Bake DirectShape] bridge.bake_directshape [EXPORT]",
-                      "[Bake Family] bridge.bake_family [EXPORT]",
-                      "[Remove bake] bridge.remove_bake [TRASH]"]
+    expected_order = ["Category = OST_Walls", "Accept open solid = False",
+                      "Smooth mesh (no volume) = False",
+                      "[Apply to Selected] bilocus.apply_bake_category",
+                      "[Bake DirectShape] bilocus.bake_directshape [EXPORT]",
+                      "[Bake Family] bilocus.bake_family [EXPORT]",
+                      "bilocus_bake_together = False",
+                      "[Remove Bake] bilocus.remove_bake [TRASH]"]
     check(order == expected_order, "panel: property and button order {}".format(order))
 
     level, message = bake_send.bake_selected(bpy.context)
@@ -790,7 +792,7 @@ def test_family(server, collection, sample, cube, addon_module):
     select_only([sample, cube, opened], active=opened)
     lines = draw_panel()
     section = bake_section(lines)
-    check(any(line[1] == "prop" and line[2] == "Accept non-closed solid = True"
+    check(any(line[1] == "prop" and line[2] == "Accept open solid = True"
               for line in section),
           "panel: active object's checkbox on")
 

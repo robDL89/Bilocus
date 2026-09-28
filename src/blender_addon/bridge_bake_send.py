@@ -560,9 +560,10 @@ def remove_bake_selected(context=None):
 
 
 def apply_category_to_selected(context=None):
-    """Copies the category AND the "accept non-closed solid" checkbox of the
-    active object onto all other selected mesh objects. Returns how many it
-    changed: zero even when there is no active mesh to copy from.
+    """Copies the category AND the "accept non-closed solid" and "smooth
+    mesh" checkboxes of the active object onto all other selected mesh
+    objects. Returns how many it changed: zero even when there is no active
+    mesh to copy from.
 
     The properties travel together because together they describe what
     the object becomes in Revit: copying only the category would leave a
