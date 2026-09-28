@@ -18,8 +18,8 @@ jobs:
     name: .NET build and tests
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
       - name: Build the add-in for Revit 2024 (net48)
@@ -33,8 +33,8 @@ jobs:
     name: Python tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           # the Python bundled with Blender 5.1 and 5.2
           python-version: "3.13"
@@ -50,7 +50,7 @@ jobs:
       matrix:
         blender: ["5.1.2", "5.2.2"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Download Blender
         run: |
           series="${BLENDER_VERSION%.*}"
