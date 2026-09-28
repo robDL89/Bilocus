@@ -64,7 +64,9 @@ socket client (Connect)    <----TCP---->         v
 ```
 
 No intermediate file. The preview lives only in RAM on the Revit side and
-disappears when Revit closes or on disconnection.
+disappears when Revit closes. It survives a disconnection or a closed
+Blender: Clear Preview, in the Blender panel or in the Revit ribbon,
+removes it.
 
 ---
 
@@ -79,8 +81,9 @@ disappears when Revit closes or on disconnection.
   "connection closed by Revit") and pending transforms are discarded.
   Survives a Blender restart without touching Revit; after a Revit restart
   the preview restarts empty and a Sync is needed.
-- Only one active connection at a time. A second connection is
-  refused with an explicit error message.
+- Only one active connection at a time. A second client is not refused:
+  its connection waits in the listener backlog, with no hello_ack, until
+  the first one disconnects.
 
 ---
 
@@ -723,7 +726,7 @@ parsed header's fields, not on the raw bytes.
 
 - `App` - `IExternalApplication`. Starts the listener, registers the DC3D
   server, builds the ribbon: panel Exchange (Send Selection to Blender,
-  Remove Proxy Lines) and panel Connection (Status). Icons are PNGs
+  Remove Proxy Lines) and panel Connection (Status, Clear Preview). Icons are PNGs
   embedded in the assembly, drawn by `tools/make_icons.py`; F1 on a
   button opens the README.
 - `BridgeServer` - background-thread TCP listener. Frame parsing,

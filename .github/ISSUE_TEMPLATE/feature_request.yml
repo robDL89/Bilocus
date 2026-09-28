@@ -1,0 +1,16 @@
+name: Feature request
+description: An idea to make Bilocus more useful
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: The workflow between Blender and Revit you have in mind, and where Bilocus gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you would like
+      description: How you imagine it working. Screenshots or sketches are welcome.

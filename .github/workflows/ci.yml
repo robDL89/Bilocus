@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Roberto Dolfini
+
+# Builds the Revit add-in for both Revit versions and runs every test suite:
+# xUnit (net8.0 and net48), pytest, and the smoke test inside real Blender.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dotnet:
+    name: .NET build and tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build the add-in for Revit 2024 (net48)
+        run: dotnet build src/Bilocus.Revit/Bilocus.Revit.csproj -c Release -p:RevitVersion=2024
+      - name: Build the add-in for Revit 2025 (net8.0-windows)
+        run: dotnet build src/Bilocus.Revit/Bilocus.Revit.csproj -c Release -p:RevitVersion=2025
+      - name: Tests (net8.0 and net48)
+        run: dotnet test Bilocus.sln -c Release
+
+  python:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          # the Python bundled with Blender 5.1 and 5.2
+          python-version: "3.13"
+      - run: python -m pip install pytest
+      - run: python -m pytest -q
+        working-directory: tests/python
+
+  blender:
+    name: Smoke test in Blender ${{ matrix.blender }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        blender: ["5.1.2", "5.2.2"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Blender
+        run: |
+          series="${BLENDER_VERSION%.*}"
+          curl -fsSL --retry 3 -o blender.tar.xz \
+            "https://download.blender.org/release/Blender${series}/blender-${BLENDER_VERSION}-linux-x64.tar.xz"
+          mkdir blender
+          tar -xf blender.tar.xz -C blender --strip-components=1
+        env:
+          BLENDER_VERSION: ${{ matrix.blender }}
+      - name: Run tests/blender/smoke_bake.py
+        run: |
+          ./blender/blender --background --factory-startup --python-exit-code 1 \
+            --python tests/blender/smoke_bake.py
