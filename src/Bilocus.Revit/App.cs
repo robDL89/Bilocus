@@ -105,6 +105,20 @@ namespace Bilocus.Revit
             Decorate(statusData, "Status");
             connection.AddItem(statusData);
 
+            PushButtonData clearPreviewData = new PushButtonData(
+                "BilocusClearPreview",
+                "Clear" + Environment.NewLine + "Preview",
+                assemblyPath,
+                "Bilocus.Revit.Preview.ClearPreviewCommand");
+            clearPreviewData.ToolTip =
+                "Removes the Blender preview from all views.";
+            clearPreviewData.LongDescription =
+                "The preview stays in Revit even after Blender is closed or disconnected. " +
+                "This clears it without touching the model: proxy lines and baked " +
+                "elements stay. Press Sync in Blender to bring the preview back.";
+            Decorate(clearPreviewData, "ClearPreview");
+            connection.AddItem(clearPreviewData);
+
             // The DC3D server registration is guarded: if an exception escapes
             // OnStartup, Revit disables the whole add-in and even the ribbon
             // that would help diagnose the problem is lost. The failure reason

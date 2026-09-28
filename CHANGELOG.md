@@ -5,7 +5,8 @@
 First public release.
 
 - Live preview of Blender geometry inside Revit 3D views (DirectContext3D),
-  with live transforms and manual geometry Sync.
+  with live transforms and manual geometry Sync. The preview survives a
+  closed Blender and can be cleared from either side (Clear Preview).
 - Selection pull from Revit to Blender (`FromRevit` collection), with
   in-place update on re-send.
 - Snappable proxy lines in Revit from selected Blender edges, as polylines
