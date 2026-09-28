@@ -17,21 +17,23 @@ Live bridge between Blender and Autodesk(R) Revit(R) software: the geometry
 modeled in Blender is visible inside Revit in real time, without becoming
 an element of the document.
 
-It works like the Grasshopper preview in Rhino.Inside. It is not an
-exporter and not a file converter: it is a live channel between two
+The idea is have something that works like the Grasshopper preview in Rhino.Inside. 
+It is not exactly an exporter nor a file converter, it is a live channel between two
 separate programs running on the same computer.
 
-Free and open source. Independent project, not affiliated with nor endorsed
-by Autodesk, the Blender Foundation or Anthropic.
+This is a free and open source. Independent project, not affiliated with nor endorsed
+by Autodesk and the Blender Foundation.
 
 
 ## What it does
 
 - **Live preview, Blender -> Revit.** Put objects in the Blender collection
   `ToRevit`, press **Sync** and the geometry appears in the Revit 3D views.
-  Move, rotate or scale an object and Revit follows in real time. The
+  Move, rotate or scale an object (in object mode) and Revit follows in real time. The
   preview is graphics only: nothing is added to the Revit model. Face and
-  edge colors are set in the Blender panel.
+  edge colors are set in the Blender panel. After changing the geometry (edit
+  mode, modifiers, geometry nodes), press **Sync** again: modifiers are sent
+  as they are, no need to apply them.
 
   ![Live preview: an object moved and rotated in Blender follows in Revit](docs/media/live-preview.gif)
 - **Selection pull, Revit -> Blender.** Select elements in Revit and press
@@ -39,7 +41,7 @@ by Autodesk, the Blender Foundation or Anthropic.
   with openings in the right place. Sending again updates them in place.
 
   ![A Revit selection pulled into Blender, then an object baked back as a family](docs/media/bake-family.gif)
-- **Snappable proxies.** Select edges of a Blender mesh and press
+- **Snappable proxies.** Select edges of a Blender mesh in edit mode, go back to object mode and press
   **Create Proxy**: Revit gets real model lines (straight or arcs) that you
   can snap to and use as references.
 
@@ -47,14 +49,15 @@ by Autodesk, the Blender Foundation or Anthropic.
 - **Bake.** When a shape is final, bake it into the Revit model as a
   **DirectShape** or as a loadable **family** (`BL_<name>`), with the Revit
   category of your choice. With **Bake together** checked, all the selected
-  objects go into one family named after the active object. Baking again
+  objects go into one family (useful, for example, to create different LODs of a family),
+  named after the active object. Baking again
   replaces the previous version; **Remove Bake** deletes what Bilocus
   created. A DirectShape can also arrive as a smooth mesh instead of a
   solid: see [Smooth meshes or true solids](#smooth-meshes-or-true-solids).
 
   ![A geometry nodes pavilion synced, then baked together into one family](docs/media/geomnodes-sync-blender.gif)
 
-Reference measurement: 385 objects and 1,042,674 triangles synced in 2.5 s.
+Reference measurement: 385 objects and 1,042,674 triangles synced in 2.5 s on an ASUS ROG Strix G16 (RTX 5080).
 
 ## Smooth meshes or true solids
 
@@ -69,7 +72,7 @@ object with the **Smooth mesh (no volume)** checkbox:
 | Volume, joins, voids | yes | no |
 | Bake as a family | yes | no, a family needs a solid |
 
-Use the solid when the shape has to be measured and documented, the smooth
+Use the solid when the shape has to be dimensioned or for accurate volume extraction, the smooth
 mesh when it has to be seen: presentation views, renders, context.
 
 Below, a Voronoi shell built with
@@ -80,8 +83,7 @@ side, then cut and dimensioned in section.
 
 ## What you can build
 
-Bilocus does not care how a shape was made. If Blender can show it as a
-mesh, Revit can receive it: as a live preview while you work, as proxies to
+Bilocus is a bridge, if Blender can show it as a mesh, Revit can receive it: as a live preview while you work, as proxies to
 snap to, as a DirectShape or a family when it is final.
 
 That opens Revit to everything Blender can model:
@@ -94,13 +96,11 @@ That opens Revit to everything Blender can model:
 - **Modifiers.** Arrays, bevels, booleans, subdivision, curves along paths.
   Bilocus sends the evaluated shape: nothing needs to be applied first.
 - **Other add-ons.** Anything that produces a mesh in Blender can end up in
-  Revit the same way: [Tissue](https://github.com/alessandro-zomparelli/tissue)
+  Revit the same way, for example: [Tissue](https://github.com/alessandro-zomparelli/tissue)
   for tessellations and lattices, [Sverchok](https://github.com/nortikin/sverchok)
   for node-based parametric design, building and landscape generators,
-  scanned or photogrammetry models.
+  scanned or photogrammetry models, even geometry built with [Bonsai](https://github.com/IfcOpenShell/bonsai_unstable_repo) can be brought in.
 
-Revit stays the place where the project is documented; Blender becomes the
-place where the shape is found.
 
 ## Why Bilocus?
 
@@ -119,12 +119,12 @@ Thanks to Claude Code, I finally had the opportunity to build this workflow by d
 
 ## Requirements
 
-- Autodesk Revit 2024 or 2025
-- Blender 5.1 or 5.2
+- Autodesk Revit 2024 or 2025 (more version support coming soon)
+- Blender 5.1 or 5.2 (more version support coming soon)
 - For **Bake Family** only: the English (`Metric Generic Model.rft`) or
   English-Imperial (`Generic Model.rft`) Revit family template library.
 - Windows. Both programs run on the same computer and talk over a local
-  connection (localhost, port 9877): nothing leaves your machine.
+  connection (localhost, port 9877): nothing leaves your machine, everything stays local.
 
 ## Installation
 
@@ -152,7 +152,7 @@ Download the zip files from the latest
 ## Quick start
 
 1. Open a project in Revit and a 3D view.
-2. In Blender, select some mesh objects and press **Add Selection**: they
+2. In Blender, create some mesh objects, select them and press **Add Selection**: they
    go into the `ToRevit` collection.
 3. Press **Connect**, then **Sync**. The geometry appears in the Revit 3D
    view. Move an object in Blender and watch it move in Revit.
@@ -168,12 +168,13 @@ the connection drops, the panel says so.
   to, scheduled, printed or exported, and it does not cast shadows. When
   you need any of that, use **Create Proxy** or **Bake**.
 - The preview shows only in 3D views. For plan or elevation, use a 3D view
-  with an orthographic top or front orientation.
+  with an orthographic top or front orientation. (currently studying how to bring proper preview in plan and section views)
 - Blender and Revit share Revit's internal origin. Project Base Point and
   Survey Point are not used: keep the model near the origin.
 - Sync refuses to run while an object is in Edit Mode: press Tab first.
 - In Blender, `Shift+D` also copies the Bilocus identifier of an object.
-  Bilocus detects the duplicate at the next Sync and gives it a new one.
+  Bilocus detects the duplicate at the next Sync and gives it a new one. Keep an eye on the `ToRevit` collection because that's
+  what will be synced.
 - With **Bake together**, the objects other than the active one live inside
   the active object's family. **Remove Bake** or a bake of one of them on
   its own does not take it out of that family: bake the active object again
@@ -206,14 +207,17 @@ tools/                  deploy scripts
 
 ## Support
 
-Bilocus is free and will stay free. If it saves you time and you want to
+Bilocus is free and will stay free forever. If it saves you time and you want to
 say thanks, you can [buy me a coffee](https://buymeacoffee.com/archrobertodl).
 It is entirely voluntary and gives nothing extra in return.
 
 ## Credits
 
-Bilocus was developed by Roberto Dolfini together with Claude Code,
-Anthropic's coding assistant, in vibe coding.
+I designed Bilocus and followed every step of its development, building it
+together with Claude Code. Architecture, design decisions, testing and
+review were human-driven; the code was written and verified together.
+
+Found a bug or want a feature? Open an [issue](../../issues)!
 
 ## Terms of use
 
