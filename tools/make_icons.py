@@ -87,10 +87,33 @@ def icon_remove_proxy():
     return img
 
 
+def icon_clear_preview():
+    # A preview mesh (translucent isometric box, orange like Blender) and a red delete badge.
+    img = canvas()
+    d = ImageDraw.Draw(img)
+    w = 34
+    cx, cy, a = 200, 250, 150
+    top = (cx, cy - a)
+    right = (cx + a, cy - a // 2)
+    bottom = (cx, cy)
+    left = (cx - a, cy - a // 2)
+    down = a
+    d.polygon([top, right, bottom, left], fill=(242, 140, 40, 70))
+    line(d, [top, right, bottom, left, top], ORANGE, w)
+    line(d, [left, (left[0], left[1] + down), (bottom[0], bottom[1] + down),
+             (right[0], right[1] + down), right], ORANGE, w)
+    line(d, [bottom, (bottom[0], bottom[1] + down)], ORANGE, w)
+    disc(d, 385, 385, 118, RED)
+    line(d, [(338, 338), (432, 432)], WHITE, 44)
+    line(d, [(432, 338), (338, 432)], WHITE, 44)
+    return img
+
+
 # Status16/32/64.png are not drawn here: they come from the Bilocus logo.
 ICONS = {
     "SendSelection": icon_send_selection,
     "RemoveProxy": icon_remove_proxy,
+    "ClearPreview": icon_clear_preview,
 }
 
 

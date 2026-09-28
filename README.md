@@ -33,7 +33,9 @@ by Autodesk and the Blender Foundation.
   preview is graphics only: nothing is added to the Revit model. Face and
   edge colors are set in the Blender panel. After changing the geometry (edit
   mode, modifiers, geometry nodes), press **Sync** again: modifiers are sent
-  as they are, no need to apply them.
+  as they are, no need to apply them. The preview stays in Revit even
+  after Blender is closed: remove it with **Clear Preview**, in the Blender
+  panel or in the Revit ribbon.
 
   ![Live preview: an object moved and rotated in Blender follows in Revit](docs/media/live-preview.gif)
 - **Selection pull, Revit -> Blender.** Select elements in Revit and press
