@@ -221,8 +221,13 @@ tools/                  deploy scripts
 
 ## Support
 
-Bilocus is free and will stay free forever. If it saves you time and you want to
-say thanks, you can [buy me a coffee](https://buymeacoffee.com/archrobertodl).
+I know how hard it is, especially as a student or a junior architect just
+starting with Revit, to find a free add-on that does what you need: I have been
+there myself. That is
+why Bilocus is free for everyone, and it will stay free forever.
+
+If you use it professionally, it saves you time and you'd like to support the
+project, you can [buy me a coffee](https://buymeacoffee.com/archrobertodl)!
 It is entirely voluntary and gives nothing extra in return.
 
 ## Credits
