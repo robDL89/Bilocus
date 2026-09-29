@@ -234,7 +234,8 @@ It is entirely voluntary and gives nothing extra in return.
 
 I designed Bilocus and followed every step of its development, building it
 together with Claude Code. Architecture, design decisions, testing and
-review were human-driven; the code was written and verified together.
+review were human-driven; the code was written by Claude Code and verified
+together.
 
 Found a bug or want a feature? Open an [issue](../../issues)!
 
