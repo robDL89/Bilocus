@@ -134,6 +134,10 @@ Thanks to Claude Code, I finally had the opportunity to build this workflow by d
 Download the zip files from the latest
 [Release](../../releases/latest).
 
+> **Use the Release zips, not the green *Code → Download ZIP* button.**
+> That button downloads the source code, which Blender and Revit cannot
+> install: Blender accepts it without errors, but no add-on appears.
+
 **Revit add-in**
 
 1. Close Revit.
@@ -147,7 +151,7 @@ Download the zip files from the latest
 If Revit reports that it cannot load the add-in, right-click the downloaded
 zip, open *Properties*, tick *Unblock*, then unzip it again.
 
-**Blender add-on**
+**Blender add-on** (Blender 5.1 or later: older versions are not supported)
 
 1. In Blender open *Edit > Preferences > Add-ons*.
 2. From the menu at the top right choose *Install from Disk* and pick
