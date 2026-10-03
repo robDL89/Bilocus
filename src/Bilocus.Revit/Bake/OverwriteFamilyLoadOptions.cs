@@ -37,4 +37,26 @@ namespace Bilocus.Revit.Bake
             return true;
         }
     }
+
+    // The answers to LoadFamily for a NEW bridge family: never overwrite.
+    // The name was chosen free just before, so a family found with it means
+    // something else owns that name, and overwriting it would replace the
+    // geometry of every one of its instances. Observed in the field: the
+    // user's family, not the bridge's, ended up with the baked solid.
+    public sealed class KeepExistingFamilyLoadOptions : IFamilyLoadOptions
+    {
+        public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+        {
+            overwriteParameterValues = false;
+            return false;
+        }
+
+        public bool OnSharedFamilyFound(
+            Family sharedFamily, bool familyInUse, out FamilySource source, out bool overwriteParameterValues)
+        {
+            source = FamilySource.Project;
+            overwriteParameterValues = false;
+            return false;
+        }
+    }
 }
