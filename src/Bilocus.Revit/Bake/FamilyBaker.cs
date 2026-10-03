@@ -26,7 +26,8 @@ namespace Bilocus.Revit.Bake
     // also says so for EditFamily). So for each object:
     //
     //   creation:   NewFamilyDocument -> [T family: category, FreeFormElement,
-    //               name, mark] -> LoadFamily -> Close(false)
+    //               mark] -> SaveAs BL_<name>.rfa in a temp folder
+    //               -> LoadFamily never overwriting -> Close(false)
     //               -> [T project: family mark, instance, rotation, instance
     //               mark, DirectShapes of the other mode deleted]
     //   re-bake:    EditFamily -> [T family: UpdateSolidGeometry, category]
@@ -684,7 +685,13 @@ namespace Bilocus.Revit.Bake
                 }
                 _opened.Register(familyDoc, host.Name);
 
+                // The families present BEFORE the load: a family that comes
+                // back from LoadFamily and is among them is not ours.
+                HashSet<ElementId> existing = new HashSet<ElementId>(
+                    new FilteredElementCollector(_project).OfClass(typeof(Family)).ToElementIds());
+
                 Family loaded;
+                string tempFolder = null;
                 try
                 {
                     string refusal = InTransaction(familyDoc, FamilyTransactionName, () =>
@@ -697,7 +704,6 @@ namespace Bilocus.Revit.Bake
                         {
                             created.Add(FreeFormElement.Create(familyDoc, member.Solid));
                         }
-                        familyDoc.OwnerFamily.Name = familyName;
 
                         // Last, as in the other builders: an exception above
                         // rolls everything back and no half-marked element
@@ -710,17 +716,39 @@ namespace Bilocus.Revit.Bake
                     });
                     if (refusal != null) { return ObjectWrite.Refused(refusal); }
 
-                    loaded = LoadInto(familyDoc);
+                    // An UNSAVED family document is loaded under its title,
+                    // the "Family1", "Family2"... Revit counts from 1 at every
+                    // restart, and setting OwnerFamily.Name is silently
+                    // ignored. Observed in the field: a new bake took the name
+                    // of a family already in the project and, loading over
+                    // it, put its solid in the instances of that family. Saved
+                    // as BL_<name>.rfa, the family gets exactly the name just
+                    // checked as free. A fresh folder each time: no file of a
+                    // previous bake can be in the way.
+                    tempFolder = Path.Combine(Path.GetTempPath(), "Bilocus", Guid.NewGuid().ToString("N"));
+                    Directory.CreateDirectory(tempFolder);
+                    familyDoc.SaveAs(Path.Combine(tempFolder, familyName + ".rfa"));
+
+                    loaded = LoadInto(familyDoc, new KeepExistingFamilyLoadOptions());
                 }
                 finally
                 {
                     CloseFamilyDocument(familyDoc, host.Name);
+                    DeleteTempFolder(tempFolder);
                 }
 
                 if (loaded == null)
                 {
                     return ObjectWrite.Refused("LoadFamily did not return the family " + familyName
                         + ": check the project browser to see if it was loaded");
+                }
+
+                // Not marked, not placed, not removed: it belongs to someone
+                // else, and leaving it exactly as it was is the point.
+                if (existing.Contains(loaded.Id))
+                {
+                    return ObjectWrite.Refused("a family named " + loaded.Name
+                        + " is already in the project and was left untouched: rename the Blender object and bake again");
                 }
 
                 int switched = 0;
@@ -832,7 +860,10 @@ namespace Bilocus.Revit.Bake
                     });
                     if (refusal != null) { return ObjectWrite.Refused(refusal); }
 
-                    loaded = LoadInto(familyDoc);
+                    // Overwriting is the point here: EditFamily's document
+                    // carries the name of the marked family, so the family
+                    // found is exactly the one being updated.
+                    loaded = LoadInto(familyDoc, new OverwriteFamilyLoadOptions());
                 }
                 finally
                 {
@@ -975,10 +1006,18 @@ namespace Bilocus.Revit.Bake
                 }
             }
 
-            private Family LoadInto(Document familyDoc)
+            private Family LoadInto(Document familyDoc, IFamilyLoadOptions options)
             {
-                return CallFamilyApi("LoadFamily",
-                    () => familyDoc.LoadFamily(_project, new OverwriteFamilyLoadOptions()), true);
+                return CallFamilyApi("LoadFamily", () => familyDoc.LoadFamily(_project, options), true);
+            }
+
+            // Best effort: a leftover .rfa in %TEMP% harms nobody, and a
+            // failure here must not fail an object already written.
+            private static void DeleteTempFolder(string folder)
+            {
+                if (folder == null) { return; }
+                try { Directory.Delete(folder, true); }
+                catch (Exception) { }
             }
 
             // Close(false) always, and a failure to close is not swallowed:

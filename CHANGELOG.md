@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1 - unreleased
+
+- Fixed: **Bake Family could overwrite an existing family.** A new family
+  was loaded under Revit's temporary name ("Family1", "Family2"...), not
+  `BL_<name>`, and if the project already had a family with that name its
+  geometry was replaced, so the solid appeared in that family's instances,
+  somewhere else in the model. New families are now loaded as `BL_<name>`
+  and never overwrite an existing family. Families created by 0.1.0 are
+  renamed to `BL_<name>` on their next bake.
+
 ## 0.1.0 - 2026-09-29
 
 First public release.
