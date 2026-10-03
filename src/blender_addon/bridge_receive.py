@@ -127,6 +127,33 @@ def element_id_key(value):
         "element_id of unexpected type: {}".format(type(value).__name__))
 
 
+def pick_pulled(candidates):
+    """Which object a pull updates: an index into `candidates`, or None to
+    create a new object.
+
+    `candidates` are the objects carrying the element's id, as pairs
+    (current name, name saved at the last pull), in bpy.data.objects
+    order. Shift+D copies every custom property, the id and the saved name
+    included, but Blender keeps object names unique: only the object the
+    pull itself named still has its saved name. Observed in the field: a
+    copy renamed "Cut_solid" came first in name order and the pull
+    replaced the user's solid with the beam.
+
+    Copies only (original deleted or renamed): None. A new object costs a
+    duplicate beam at worst, updating a copy costs the user's work.
+
+    No saved name anywhere: objects pulled before it existed, the first
+    match as before."""
+    if not candidates:
+        return None
+    for index, (name, pulled_name) in enumerate(candidates):
+        if pulled_name is not None and name == pulled_name:
+            return index
+    if any(pulled_name is not None for _name, pulled_name in candidates):
+        return None
+    return 0
+
+
 def _read_count(header, name):
     value = header.get(name)
     if isinstance(value, bool) or not isinstance(value, int):
