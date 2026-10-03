@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1 - unreleased
+## 0.1.1 - 2026-10-03
 
 - Fixed: **Bake Family could overwrite an existing family.** A new family
   was loaded under Revit's temporary name ("Family1", "Family2"...), not
