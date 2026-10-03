@@ -706,3 +706,36 @@ def test_proxy_result_with_arcs_mentions_them():
 def test_proxy_result_with_a_negative_arc_count_is_rejected():
     with pytest.raises(bridge_receive.BridgeMessageError):
         bridge_receive.read_proxy_result(proxy_header(arcs=-1))
+
+
+# --- which object a pull updates (Shift+D copies) -------------------------
+#
+# Candidates are (current name, name saved at the last pull) in the order
+# bpy.data.objects lists them. A Shift+D copy inherits the saved name but
+# cannot have the same current name: Blender keeps names unique.
+
+def test_pick_pulled_prefers_the_genuine_object_over_a_renamed_copy():
+    # observed in the field: the copy renamed "Cut_solid" comes first in
+    # name order and used to be the one overwritten
+    candidates = [("Cut_solid", "Beam [7]"), ("Beam [7]", "Beam [7]")]
+    assert bridge_receive.pick_pulled(candidates) == 1
+
+
+def test_pick_pulled_ignores_a_copy_with_the_default_suffix():
+    candidates = [("Beam [7]", "Beam [7]"), ("Beam [7].001", "Beam [7]")]
+    assert bridge_receive.pick_pulled(candidates) == 0
+
+
+def test_pick_pulled_creates_a_new_object_when_only_copies_are_left():
+    # original deleted (or renamed): updating a copy would destroy the
+    # user's work, a new object costs nothing
+    assert bridge_receive.pick_pulled([("Cut_solid", "Beam [7]")]) is None
+
+
+def test_pick_pulled_keeps_the_old_behavior_for_objects_without_the_saved_name():
+    # files pulled by 0.1.0: the first match, as before
+    assert bridge_receive.pick_pulled([("Beam [7]", None), ("Beam [7].001", None)]) == 0
+
+
+def test_pick_pulled_with_no_candidates():
+    assert bridge_receive.pick_pulled([]) is None

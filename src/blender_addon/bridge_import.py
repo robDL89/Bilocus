@@ -26,6 +26,10 @@ ID_PROPERTY = "revit_element_id"
 CATEGORY_PROPERTY = "revit_category"
 TYPE_PROPERTY = "revit_type_name"
 
+# The object's name as the last pull left it: tells the pulled object from
+# its Shift+D copies, see receive.pick_pulled.
+PULL_NAME_PROPERTY = "revit_pull_name"
+
 # Scene property for the "Reset transform on pull" checkbox. Lives on the
 # Scene and not in the module because it is a FILE preference: whoever
 # aligns geometry against a reference wants it on for that whole project,
@@ -121,7 +125,11 @@ def find_object(element_id):
     references to objects the user can delete between one timer tick and
     the next, and reading a freed ID does not give an error, it gives a
     crash. The pull is limited to the current selection, never the model, so
-    the cost is what it is."""
+    the cost is what it is.
+
+    Several objects can carry the id: Shift+D copies it. Which one is the
+    pulled element is decided by receive.pick_pulled."""
+    matches = []
     for obj in bpy.data.objects:
         if obj.type != 'MESH':
             continue
@@ -129,8 +137,10 @@ def find_object(element_id):
         if value is None:
             continue
         if _as_key(value) == element_id:
-            return obj
-    return None
+            matches.append(obj)
+
+    index = receive.pick_pulled([(obj.name, obj.get(PULL_NAME_PROPERTY)) for obj in matches])
+    return None if index is None else matches[index]
 
 
 def _as_key(value):
@@ -232,6 +242,9 @@ def import_geometry(fields, positions, indices, scene=None):
     obj[ID_PROPERTY] = element_id
     obj[CATEGORY_PROPERTY] = fields["category"]
     obj[TYPE_PROPERTY] = fields["type_name"]
+    # obj.name and not fields["name"]: Blender may have cut it (63 bytes) or
+    # suffixed it (name taken), and the comparison is with the real name.
+    obj[PULL_NAME_PROPERTY] = obj.name
     obj.color = fields["color"]
 
     return created

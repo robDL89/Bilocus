@@ -9,6 +9,11 @@
   somewhere else in the model. New families are now loaded as `BL_<name>`
   and never overwrite an existing family. Families created by 0.1.0 are
   renamed to `BL_<name>` on their next bake.
+- Fixed: **Send Selection could overwrite a Shift+D copy.** A duplicate of a
+  pulled object kept its Revit id, and pulling the element again could
+  update the copy (for example a cutting solid modeled from a beam) instead
+  of the original. Now only the pulled object is updated; if it is gone,
+  a new object is created and the copies are left alone.
 
 ## 0.1.0 - 2026-09-29
 
