@@ -16,6 +16,8 @@
 # module bridge_import.py touches bpy and for that reason is not covered by
 # tests: every line that can live on this side must live on this side.
 
+import collections
+import hashlib
 import math
 import struct
 
@@ -242,6 +244,138 @@ def read_geometry_header(header):
     }
 
 
+# --- instancing: revit_mesh / revit_instance -------------------------------
+#
+# Written by MessageRouter.BuildMeshHeader and BuildInstanceHeader on the
+# Revit side (spec 2026-10-04). A revit_mesh carries the geometry of a family
+# symbol once per batch; every revit_instance that follows points at it by
+# mesh_key and is placed by a full matrix instead of origin.
+
+# Below this the 3x3 part squashes the mesh flat on some axis: not a
+# placement Revit can produce, so a content error rather than an invisible
+# object.
+MIN_DETERMINANT = 1e-9
+
+
+def _read_mesh_key(header):
+    value = header.get("mesh_key")
+    if not isinstance(value, str) or not value.strip():
+        raise BridgeMessageError("mesh_key missing or empty: {}".format(value))
+    return value.strip()
+
+
+def determinant3x3(matrix):
+    """Determinant of the rotation-scale part of a row-major 4x4. Negative
+    means mirrored, which Revit does produce and Blender shows as a
+    negative scale."""
+    a, b, c = matrix[0], matrix[1], matrix[2]
+    d, e, f = matrix[4], matrix[5], matrix[6]
+    g, h, i = matrix[8], matrix[9], matrix[10]
+    return a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
+
+
+def _read_matrix(header):
+    """The instance's matrix: 16 floats, row-major, meters.
+
+    Read STRICTLY, like origin and for the same reason: a wrong placement is
+    the worst error for reference geometry, and a NaN would make the object
+    vanish from the viewport without a word."""
+    value = header.get("matrix")
+    if not isinstance(value, (list, tuple)) or len(value) != 16:
+        raise BridgeMessageError(
+            "matrix field missing or not an array of 16 numbers: {}".format(value))
+    result = []
+    for component in value:
+        if isinstance(component, bool) or not isinstance(component, (int, float)):
+            raise BridgeMessageError("non-numeric component in matrix: {}".format(value))
+        component = float(component)
+        if not math.isfinite(component):
+            raise BridgeMessageError("non-finite component in matrix: {}".format(value))
+        result.append(component)
+    det = determinant3x3(result)
+    # Finite components can still overflow the determinant to inf or NaN,
+    # and NaN compares False against everything: check it explicitly.
+    if not math.isfinite(det) or abs(det) < MIN_DETERMINANT:
+        raise BridgeMessageError("singular matrix: {}".format(value))
+    return tuple(result)
+
+
+def matrix_rows(matrix):
+    """Row-major flat 16 -> four rows, the shape mathutils.Matrix takes."""
+    return tuple(tuple(matrix[row * 4:row * 4 + 4]) for row in range(4))
+
+
+def read_mesh_header(header):
+    return {
+        "mesh_key": _read_mesh_key(header),
+        "vert_count": _read_count(header, "vert_count"),
+        "tri_count": _read_count(header, "tri_count"),
+    }
+
+
+def read_instance_header(header):
+    element_id = element_id_key(header.get("element_id"))
+    name = _read_text(header, "name")
+    if not name:
+        name = "Revit {}".format(element_id)
+    return {
+        "element_id": element_id,
+        "name": name,
+        "category": _read_text(header, "category"),
+        "type_name": _read_text(header, "type_name"),
+        "mesh_key": _read_mesh_key(header),
+        "matrix": _read_matrix(header),
+        "color": _read_color(header),
+    }
+
+
+def mesh_signature(coord_bytes, face_count):
+    """Fingerprint of a mesh's geometry as the pull left it.
+
+    coord_bytes are the vertex coordinates as Blender stores them (float32,
+    read with foreach_get), so an untouched mesh gives back the same bytes
+    exactly. UVs and materials stay out on purpose: texturing a mesh is not
+    touching its geometry."""
+    digest = hashlib.sha1()
+    digest.update(coord_bytes)
+    digest.update(struct.pack("<Q", face_count))
+    return digest.hexdigest()
+
+
+def most_used(items):
+    """The most frequent item, the first met on a tie; None if empty.
+
+    Which mesh a key resolves to when the objects sharing it disagree: the
+    user replaced some of them, not all, and the majority is the best guess
+    of what that type looks like now."""
+    if not items:
+        return None
+    return collections.Counter(items).most_common(1)[0][0]
+
+
+def instance_update(exists, was_instance, touched, reset_enabled):
+    """(replace_mesh, apply_matrix) for a revit_instance. Spec section 4.4.
+
+    A new object, or one that was flat until now, always gets the mesh and
+    the matrix: for the flat one the local frame changed (bounding box
+    center -> insertion point plus rotation), and keeping its old location
+    with the new mesh would shift the geometry without a word. An instance
+    already there keeps a TOUCHED mesh (the user's work wins) and keeps its
+    position unless the reset toggle is on."""
+    if not exists or not was_instance:
+        return True, True
+    return not touched, bool(reset_enabled)
+
+
+def flat_update_resets_transform(was_instance, reset_enabled):
+    """Whether a revit_geometry update resets the object to origin.
+
+    An object that was an instance had the insertion point as its frame:
+    the flat mesh is centered on the bounding box, so the transform goes
+    back to origin regardless of the toggle."""
+    return bool(was_instance or reset_enabled)
+
+
 def read_batch_count(header):
     """The element count announced by revit_batch_begin, or None.
 
@@ -304,6 +438,11 @@ class BatchState(object):
         self.created = 0
         self.updated = 0
         self.failed = 0
+        self.overwritten = 0
+        # revit_mesh payloads of this batch, by key. They become datablocks
+        # only when an instance uses them (bridge_import), so a batch that
+        # dies halfway leaves no orphan meshes in the file.
+        self.meshes = {}
         self.last_activity = 0.0
 
     def begin(self, count, now):
@@ -319,17 +458,26 @@ class BatchState(object):
         self.message = self._progress()
         return note
 
-    def record(self, created, now):
+    def record(self, created, now, overwritten=False):
         """An imported element. created tells whether it was created or
-        updated."""
+        updated; overwritten whether the user's edits on its mesh were lost
+        because the element no longer shares geometry (instance -> flat)."""
         self._ensure_open(now)
         self.received += 1
         if created:
             self.created += 1
         else:
             self.updated += 1
+        if overwritten:
+            self.overwritten += 1
         self.last_activity = now
         self.message = self._progress()
+
+    def store_mesh(self, key, positions, indices, now):
+        """A revit_mesh: kept until the end of the batch."""
+        self._ensure_open(now)
+        self.meshes[key] = (positions, indices)
+        self.last_activity = now
 
     def record_failure(self, now):
         self._ensure_open(now)
@@ -342,6 +490,7 @@ class BatchState(object):
         if not self.open:
             return False
         self.open = False
+        self.meshes = {}
         self.last_activity = now
         self.message = self._summary()
         return True
@@ -358,6 +507,7 @@ class BatchState(object):
         else:
             return None
         self.open = False
+        self.meshes = {}
         self.message = "{} - INTERRUPTED: {}".format(self._summary(), reason)
         return reason
 
@@ -382,6 +532,11 @@ class BatchState(object):
     def _summary(self):
         text = "{} objects: {} created, {} updated".format(
             self.received, self.created, self.updated)
+        if self.overwritten:
+            # The only case where a pull discards the user's work: say it
+            # where the user looks, not only in the console.
+            text = "{}, {} edited mesh{} overwritten".format(
+                text, self.overwritten, "" if self.overwritten == 1 else "es")
         return self._with_failures(text)
 
     def _with_failures(self, text):

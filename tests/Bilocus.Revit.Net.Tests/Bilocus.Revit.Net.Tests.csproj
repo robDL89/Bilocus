@@ -45,6 +45,12 @@
     <Compile Include="..\..\src\Bilocus.Revit\Pull\ElementNaming.cs" Link="Pull\ElementNaming.cs" />
     <Compile Include="..\..\src\Bilocus.Revit\Pull\TessellatedMesh.cs" Link="Pull\TessellatedMesh.cs" />
 
+    <!-- Instancing: the mesh key and the Transform -> matrix conversion.
+         Pure on purpose, for the same reason as TessellatedMesh: a wrong
+         key merges different families, and only a test sees it before a
+         render does. ElementTessellator.TessellateInstance stays out. -->
+    <Compile Include="..\..\src\Bilocus.Revit\Pull\InstanceGeometry.cs" Link="Pull\InstanceGeometry.cs" />
+
     <!-- The text summary of SendSelectionCommand is the only other
          part of the command that does not touch the Revit API, for the same
          reason as ElementNaming. SendSelectionCommand itself stays out: it is

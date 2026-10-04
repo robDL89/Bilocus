@@ -12,9 +12,13 @@
 # __init__.py. The socket thread never calls anything in this file. See
 # DESIGN.md 5.4.
 
+from array import array
+
 import bpy
+from mathutils import Matrix
 
 import bridge_receive as receive
+from bridge_protocol import BridgeMessageError
 
 # ASCII mandatory, like for ToRevit: the name ends up in logs and in the panel.
 COLLECTION_NAME = "FromRevit"
@@ -29,6 +33,16 @@ TYPE_PROPERTY = "revit_type_name"
 # The object's name as the last pull left it: tells the pulled object from
 # its Shift+D copies, see receive.pick_pulled.
 PULL_NAME_PROPERTY = "revit_pull_name"
+
+# Instancing (spec 2026-10-04). On the OBJECT: the key of the Revit geometry
+# it shows, set for every object pulled as an instance and removed when the
+# element arrives flat again. On the MESH: the key it was built from (shared
+# meshes only), and the signature of its geometry at pull time, on EVERY
+# mesh the bridge builds - that is also how the bridge tells its own meshes
+# from the user's when cleaning up.
+MESH_KEY_PROPERTY = "revit_mesh_key"
+MESH_KEY_MARK = "bilocus_mesh_key"
+MESH_SIG_MARK = "bilocus_mesh_sig"
 
 # Scene property for the "Reset transform on pull" checkbox. Lives on the
 # Scene and not in the module because it is a FILE preference: whoever
@@ -155,10 +169,105 @@ def _as_key(value):
         return None
 
 
+def _signature(mesh):
+    coords = array('f', [0.0]) * (len(mesh.vertices) * 3)
+    mesh.vertices.foreach_get("co", coords)
+    return receive.mesh_signature(coords.tobytes(), len(mesh.polygons))
+
+
+def _build_mesh(name, positions, indices, mesh_key=None):
+    """A new mesh datablock from the payload, already marked.
+
+    Grouping and index checking come BEFORE meshes.new: a malformed message
+    must surface here, not after leaving an orphan mesh behind."""
+    verts = receive.group_into_triples(positions)
+    receive.check_indices(indices, len(verts))
+    faces = receive.group_into_triples(indices)
+
+    mesh = bpy.data.meshes.new(name)
+    mesh.from_pydata(verts, [], faces)
+    mesh.update()
+    if mesh_key is not None:
+        mesh[MESH_KEY_MARK] = mesh_key
+    mesh[MESH_SIG_MARK] = _signature(mesh)
+    return mesh
+
+
+def _in_edit_mode(mesh):
+    for obj in bpy.data.objects:
+        if obj.data == mesh and obj.mode == 'EDIT':
+            return True
+    return False
+
+
+def is_touched(mesh):
+    """Rule C: whether the user worked on this mesh's geometry.
+
+    Without the key mark it is not the bridge's shared mesh (an asset linked
+    with Ctrl+L, or a flat mesh). In edit mode the data is not flushed yet,
+    so the signature cannot be trusted: touched, to be safe. Otherwise the
+    geometry is compared with the signature taken at pull time."""
+    if mesh is None or mesh.get(MESH_KEY_MARK) is None:
+        return True
+    if _in_edit_mode(mesh):
+        return True
+    return _signature(mesh) != mesh.get(MESH_SIG_MARK)
+
+
+def find_key_mesh(mesh_key):
+    """The mesh the objects of this key are showing now, or None.
+
+    No registry: the truth is what is in the scene. When the objects
+    disagree (the user replaced some, not all) the majority wins. Linear
+    scan, same reasoning as find_object."""
+    names = [obj.data.name for obj in bpy.data.objects
+             if obj.type == 'MESH' and obj.data is not None
+             and obj.get(MESH_KEY_PROPERTY) == mesh_key]
+    name = receive.most_used(names)
+    return None if name is None else bpy.data.meshes.get(name)
+
+
+def _remove_if_orphan(mesh):
+    # Only meshes the bridge built: an asset left without users is still the
+    # user's, and Blender purges it on save if they really do not want it.
+    # Flat meshes from releases before the signature stay orphans until the
+    # next save, which is harmless.
+    if mesh is not None and mesh.users == 0 and mesh.get(MESH_SIG_MARK) is not None:
+        bpy.data.meshes.remove(mesh)
+
+
+def _mesh_for_key(fields):
+    """(mesh, fresh) for an instance: the one already in the scene for its
+    key, otherwise a new one from this batch's revit_mesh."""
+    mesh = find_key_mesh(fields["mesh_key"])
+    if mesh is not None:
+        return mesh, False
+    stored = LAST_PULL.meshes.get(fields["mesh_key"])
+    if stored is None:
+        raise BridgeMessageError(
+            "mesh_key {} arrived neither in this batch nor in the scene".format(
+                fields["mesh_key"]))
+    positions, indices = stored
+    name = fields["type_name"] or fields["name"]
+    return _build_mesh(name, positions, indices, fields["mesh_key"]), True
+
+
+def _write_properties(obj, fields):
+    obj[ID_PROPERTY] = fields["element_id"]
+    obj[CATEGORY_PROPERTY] = fields["category"]
+    obj[TYPE_PROPERTY] = fields["type_name"]
+    # obj.name and not fields["name"]: Blender may have cut it (63 bytes) or
+    # suffixed it (name taken), and the comparison is with the real name.
+    obj[PULL_NAME_PROPERTY] = obj.name
+    obj.color = fields["color"]
+
+
 def import_geometry(fields, positions, indices, scene=None):
     """Creates or updates the object for a revit_geometry message.
 
-    Returns True if the object was created, False if updated.
+    Returns (created, overwritten). overwritten is True when the object was
+    an instance whose mesh the user had touched: the element no longer
+    shares geometry, so the flat mesh replaces that work (spec 4.4).
 
     The normals arrive in the payload but are NOT used: Revit's
     tessellation emits non-indexed triangles and Blender recomputes the
@@ -179,20 +288,11 @@ def import_geometry(fields, positions, indices, scene=None):
     if scene is None:
         scene = bpy.context.scene
 
-    # Grouping and index checking BEFORE creating any datablock: if the
-    # message is malformed it must surface here, not after leaving an
-    # orphan mesh behind.
-    verts = receive.group_into_triples(positions)
-    receive.check_indices(indices, len(verts))
-    faces = receive.group_into_triples(indices)
-
+    mesh_data = _build_mesh(fields["name"], positions, indices)
     obj = find_object(element_id)
 
-    mesh_data = bpy.data.meshes.new(fields["name"])
-    mesh_data.from_pydata(verts, [], faces)
-    mesh_data.update()
-
     created = obj is None
+    overwritten = False
     if created:
         obj = bpy.data.objects.new(fields["name"], mesh_data)
         ensure_collection(scene).objects.link(obj)
@@ -203,6 +303,9 @@ def import_geometry(fields, positions, indices, scene=None):
         # growing.
         obj.location = fields["origin"]
     else:
+        was_instance = obj.get(MESH_KEY_PROPERTY) is not None
+        overwritten = was_instance and is_touched(obj.data)
+
         # IN-PLACE replacement: only the mesh datablock changes. The
         # position in the scene, the collections the user placed the object
         # in, and the modifiers added to it all stay. This is the whole
@@ -216,13 +319,16 @@ def import_geometry(fields, positions, indices, scene=None):
         # anything on its own: before, with absolute vertices, the user's
         # matrix re-transformed them and the object drifted away on every
         # pull.
-        if reset_location_enabled(scene):
+        if receive.flat_update_resets_transform(was_instance, reset_location_enabled(scene)):
             # The WHOLE transform is reset, not just location. Restoring
             # the position while leaving rotation and scale standing is
             # worse than not restoring anything: the object looks like it
             # is back in place but is still rotated, and whoever is
             # looking believes it. Observed in the field: needed a manual
             # ALT+R to finish the job.
+            # An object that was an instance is always reset: its frame was
+            # the insertion point, the flat mesh is centered on the bounding
+            # box.
             obj.location = fields["origin"]
             obj.rotation_euler = (0.0, 0.0, 0.0)
             obj.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
@@ -234,20 +340,64 @@ def import_geometry(fields, positions, indices, scene=None):
         # Phase A. The check on users is not pedantry: if the user has
         # linked that same mesh to a second object, removing it would empty
         # that one out.
-        if old_mesh is not None and old_mesh.users == 0:
-            bpy.data.meshes.remove(old_mesh)
+        _remove_if_orphan(old_mesh)
+
+        if was_instance:
+            del obj[MESH_KEY_PROPERTY]
 
         obj.name = fields["name"]
 
-    obj[ID_PROPERTY] = element_id
-    obj[CATEGORY_PROPERTY] = fields["category"]
-    obj[TYPE_PROPERTY] = fields["type_name"]
-    # obj.name and not fields["name"]: Blender may have cut it (63 bytes) or
-    # suffixed it (name taken), and the comparison is with the real name.
-    obj[PULL_NAME_PROPERTY] = obj.name
-    obj.color = fields["color"]
+    _write_properties(obj, fields)
+    return created, overwritten
 
-    return created
+
+def import_instance(fields, scene=None):
+    """Creates or updates the object for a revit_instance message. Returns
+    True if the object was created. Spec 2026-10-04 section 4.4; the
+    decision itself is receive.instance_update, tested without Blender."""
+    if scene is None:
+        scene = bpy.context.scene
+
+    obj = find_object(fields["element_id"])
+    exists = obj is not None
+    was_instance = exists and obj.get(MESH_KEY_PROPERTY) is not None
+    touched = was_instance and is_touched(obj.data)
+    replace_mesh, apply_matrix = receive.instance_update(
+        exists, was_instance, touched, reset_location_enabled(scene))
+
+    mesh, fresh = (_mesh_for_key(fields) if replace_mesh else (None, False))
+
+    try:
+        if not exists:
+            obj = bpy.data.objects.new(fields["name"], mesh)
+            ensure_collection(scene).objects.link(obj)
+        elif replace_mesh and obj.data != mesh:
+            old_mesh = obj.data
+            # A fresh mesh inherits the material slots of the one it replaces:
+            # a texturing done on an untouched mesh survives a type change in
+            # Revit. UVs do not: the geometry is new. A mesh reused from the
+            # siblings already has its own materials and is left alone.
+            if fresh and old_mesh is not None:
+                for material in old_mesh.materials:
+                    mesh.materials.append(material)
+            obj.data = mesh
+            _remove_if_orphan(old_mesh)
+
+        if apply_matrix:
+            obj.matrix_world = Matrix(receive.matrix_rows(fields["matrix"]))
+
+        if exists:
+            obj.name = fields["name"]
+        _write_properties(obj, fields)
+        obj[MESH_KEY_PROPERTY] = fields["mesh_key"]
+    except Exception:
+        # A fresh mesh nobody uses would stay in the file as an orphan:
+        # the failure is counted by handle_instance, the mesh goes away here.
+        if fresh and mesh.users == 0:
+            bpy.data.meshes.remove(mesh)
+        raise
+
+    return not exists
 
 
 def handle_geometry(header, payload, now, scene=None):
@@ -259,7 +409,7 @@ def handle_geometry(header, payload, now, scene=None):
         fields = receive.read_geometry_header(header)
         positions, normals, indices = receive.unpack_mesh_payload(
             payload, fields["vert_count"], fields["tri_count"])
-        created = import_geometry(fields, positions, indices, scene)
+        created, overwritten = import_geometry(fields, positions, indices, scene)
     except Exception as error:
         # An element that blows up must not stop the others, exactly like
         # on the Revit side in SendSelectionCommand: it gets counted, named
@@ -268,6 +418,41 @@ def handle_geometry(header, payload, now, scene=None):
         # isolated: this function is called from a timer, and an exception
         # that bubbles up that far makes Blender disable the timer, i.e.
         # silently switches off the ENTIRE queue drain, handshake included.
+        LAST_PULL.record_failure(now)
+        return "element not imported: {}: {}".format(
+            type(error).__name__, error)
+
+    LAST_PULL.record(created, now, overwritten)
+    return None
+
+
+def handle_mesh(header, payload, now):
+    """A revit_mesh message: the payload is kept in the batch state, not
+    turned into a datablock. Returns a string to print, or None.
+
+    A malformed one is not counted as a failed element, because it is not
+    an element: the instances pointing at it fail on their own, and THEY
+    are counted."""
+    try:
+        fields = receive.read_mesh_header(header)
+        positions, _normals, indices = receive.unpack_mesh_payload(
+            payload, fields["vert_count"], fields["tri_count"])
+        receive.check_indices(indices, fields["vert_count"])
+    except Exception as error:
+        return "shared mesh discarded: {}: {}".format(type(error).__name__, error)
+
+    LAST_PULL.store_mesh(fields["mesh_key"], positions, indices, now)
+    return None
+
+
+def handle_instance(header, payload, now, scene=None):
+    """A revit_instance message. Same isolation as handle_geometry: an
+    element that blows up is counted and skipped, never propagated to the
+    timer. The payload is empty by protocol and ignored."""
+    try:
+        fields = receive.read_instance_header(header)
+        created = import_instance(fields, scene)
+    except Exception as error:
         LAST_PULL.record_failure(now)
         return "element not imported: {}: {}".format(
             type(error).__name__, error)

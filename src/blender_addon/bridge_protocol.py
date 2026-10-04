@@ -9,7 +9,7 @@
 import json
 import struct
 
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 DEFAULT_HOST = "127.0.0.1"
 
 # 9876 is taken by blender-mcp: do not reuse it.

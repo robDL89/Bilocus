@@ -86,7 +86,7 @@ namespace Bilocus.Revit.Net.Tests
             MessageRouter router = new MessageRouter(store);
             Sink sink = new Sink();
 
-            router.Handle(new Frame("{\"type\":\"hello\",\"protocol_version\":1}", null), sink.Send, Host);
+            router.Handle(new Frame("{\"type\":\"hello\",\"protocol_version\":2}", null), sink.Send, Host);
 
             Assert.Single(sink.Sent);
             JsonElement header = sink.HeaderOf(0);
@@ -110,7 +110,7 @@ namespace Bilocus.Revit.Net.Tests
             Sink sink = new Sink();
 
             router.Handle(
-                new Frame("{\"type\": \"hello\", \"protocol_version\": 1, \"client\": \"blender\"}", null),
+                new Frame("{\"type\": \"hello\", \"protocol_version\": 2, \"client\": \"blender\"}", null),
                 sink.Send, Host);
 
             Assert.Single(sink.Sent);
@@ -126,7 +126,7 @@ namespace Bilocus.Revit.Net.Tests
             MessageRouter router = new MessageRouter(store);
             Sink sink = new Sink();
 
-            router.Handle(new Frame("{\"type\":\"hello_ack\",\"protocol_version\":1}", null), sink.Send, Host);
+            router.Handle(new Frame("{\"type\":\"hello_ack\",\"protocol_version\":2}", null), sink.Send, Host);
 
             Assert.Empty(sink.Sent);
         }

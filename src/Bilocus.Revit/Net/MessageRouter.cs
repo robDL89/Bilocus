@@ -617,6 +617,80 @@ namespace Bilocus.Revit.Net
             }
         }
 
+        // revit_mesh: the geometry of a family symbol, in the family's local
+        // space, sent ONCE per batch before the first revit_instance that
+        // uses it. The payload is the same as revit_geometry's: same writer,
+        // same parser on the other side.
+        public static string BuildMeshHeader(string meshKey, int vertCount, int triCount)
+        {
+            CheckMeshKey(meshKey);
+
+            using (MemoryStream buffer = new MemoryStream())
+            {
+                using (Utf8JsonWriter writer = new Utf8JsonWriter(buffer))
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("type", "revit_mesh");
+                    writer.WriteString("mesh_key", meshKey);
+                    writer.WriteNumber("vert_count", vertCount);
+                    writer.WriteNumber("tri_count", triCount);
+                    writer.WriteEndObject();
+                }
+                return Encoding.UTF8.GetString(buffer.ToArray());
+            }
+        }
+
+        // revit_instance: an element that shows the mesh of mesh_key, placed
+        // by a full matrix (rotation and mirroring included) instead of
+        // revit_geometry's translation-only origin. No payload: the geometry
+        // travelled in revit_mesh. Same rule as BuildGeometryHeader for
+        // category and type_name: never a JSON null.
+        public static string BuildInstanceHeader(
+            long elementId, string name, string category, string typeName,
+            string meshKey, float[] matrix, float[] color)
+        {
+            if (name == null) throw new ArgumentNullException("name");
+            CheckMeshKey(meshKey);
+            if (matrix == null) throw new ArgumentNullException("matrix");
+            if (color == null) throw new ArgumentNullException("color");
+            if (matrix.Length != 16)
+            {
+                throw new ArgumentException("matrix must have 16 components, it has " + matrix.Length);
+            }
+            if (color.Length != 4)
+            {
+                throw new ArgumentException("color must have 4 components, it has " + color.Length);
+            }
+
+            using (MemoryStream buffer = new MemoryStream())
+            {
+                using (Utf8JsonWriter writer = new Utf8JsonWriter(buffer))
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("type", "revit_instance");
+                    writer.WriteNumber("element_id", elementId);
+                    writer.WriteString("name", name);
+                    writer.WriteString("category", category == null ? "" : category);
+                    writer.WriteString("type_name", typeName == null ? "" : typeName);
+                    writer.WriteString("mesh_key", meshKey);
+                    writer.WriteStartArray("matrix");
+                    for (int i = 0; i < matrix.Length; i++) { writer.WriteNumberValue(matrix[i]); }
+                    writer.WriteEndArray();
+                    writer.WriteStartArray("color");
+                    for (int i = 0; i < color.Length; i++) { writer.WriteNumberValue(color[i]); }
+                    writer.WriteEndArray();
+                    writer.WriteEndObject();
+                }
+                return Encoding.UTF8.GetString(buffer.ToArray());
+            }
+        }
+
+        private static void CheckMeshKey(string meshKey)
+        {
+            if (meshKey == null) throw new ArgumentNullException("meshKey");
+            if (meshKey.Length == 0) throw new ArgumentException("meshKey is empty");
+        }
+
         // proxy_result: how proxy creation went (DESIGN.md 5.4).
         //
         // Exists to close a hole left open on purpose. The creation runs on

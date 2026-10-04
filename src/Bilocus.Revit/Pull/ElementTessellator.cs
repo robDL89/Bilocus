@@ -47,18 +47,7 @@ namespace Bilocus.Revit.Pull
         {
             if (element == null) { return TessellatedMesh.Empty; }
 
-            Options options = new Options();
-
-            // No View, deliberately. Options.View and Options.DetailLevel are
-            // mutually exclusive by documentation, and a view would give
-            // view-specific geometry: the same element would produce
-            // different meshes depending on what is open at that moment. A
-            // reference needs deterministic model geometry.
-            options.DetailLevel = ViewDetailLevel.Fine;
-            options.ComputeReferences = false;
-            options.IncludeNonVisibleObjects = false;
-
-            GeometryElement geometry = element.get_Geometry(options);
+            GeometryElement geometry = element.get_Geometry(CreateOptions());
             if (geometry == null) { return TessellatedMesh.Empty; }
 
             List<float> positions = new List<float>();
@@ -78,6 +67,96 @@ namespace Bilocus.Revit.Pull
             // unit testable.
             return TessellatedMesh.FromWorldSpace(
                 positions.ToArray(), normals.ToArray(), indices);
+        }
+
+        private static Options CreateOptions()
+        {
+            Options options = new Options();
+
+            // No View, deliberately. Options.View and Options.DetailLevel are
+            // mutually exclusive by documentation, and a view would give
+            // view-specific geometry: the same element would produce
+            // different meshes depending on what is open at that moment. A
+            // reference needs deterministic model geometry.
+            options.DetailLevel = ViewDetailLevel.Fine;
+            options.ComputeReferences = false;
+            options.IncludeNonVisibleObjects = false;
+            return options;
+        }
+
+        // The instanceable path (spec 2026-10-04, section 2.1): returns the
+        // symbol's mesh in the family's LOCAL space, its key and the
+        // instance's matrix, or null when the element must take the flat
+        // path of Tessellate.
+        //
+        // Instanceable means: the top-level geometry is EXACTLY ONE
+        // GeometryInstance and nothing else that produces triangles. Revit
+        // already returns a cut or joined family instance as plain solids,
+        // so those fall out here on their own; empty solids, curves and
+        // points next to the instance are harmless and allowed. When in
+        // doubt, flat: a wrong share is a silent error, a missed one only
+        // costs memory.
+        //
+        // GetSymbolGeometry and not GetInstanceGeometry: here the point is
+        // the geometry BEFORE the instance's transform, the one identical
+        // across instances. Nested instances inside it are flattened by
+        // Collect with GetInstanceGeometry, which for them means "in the
+        // coordinate system of the symbol that owns them".
+        public static InstancedMesh TessellateInstance(Element element)
+        {
+            if (element == null) { return null; }
+
+            GeometryElement geometry = element.get_Geometry(CreateOptions());
+            if (geometry == null) { return null; }
+
+            GeometryInstance single = null;
+            foreach (GeometryObject obj in geometry)
+            {
+                GeometryInstance instance = obj as GeometryInstance;
+                if (instance != null)
+                {
+                    if (single != null) { return null; }
+                    single = instance;
+                    continue;
+                }
+                if (HasTriangles(obj)) { return null; }
+            }
+            if (single == null) { return null; }
+
+            List<float> positions = new List<float>();
+            List<float> normals = new List<float>();
+            Collect(single.GetSymbolGeometry(), positions, normals, 1);
+            if (positions.Count == 0) { return null; }
+
+            int[] indices = new int[positions.Count / 3];
+            for (int i = 0; i < indices.Length; i++) { indices[i] = i; }
+
+            // Origin unused on this path: the matrix places the object.
+            TessellatedMesh mesh = new TessellatedMesh(
+                positions.ToArray(), normals.ToArray(), indices, new float[3]);
+
+            Transform transform = single.Transform;
+            float[] matrix = InstanceGeometry.RowMajorFromTransform(
+                ToArray(transform.BasisX), ToArray(transform.BasisY),
+                ToArray(transform.BasisZ), ToArray(transform.Origin));
+
+            return new InstancedMesh(mesh, InstanceGeometry.ComputeMeshKey(mesh.Positions), matrix);
+        }
+
+        private static bool HasTriangles(GeometryObject obj)
+        {
+            Solid solid = obj as Solid;
+            if (solid != null) { return solid.Faces != null && solid.Faces.Size > 0; }
+
+            Mesh mesh = obj as Mesh;
+            if (mesh != null) { return mesh.NumTriangles > 0; }
+
+            return false;
+        }
+
+        private static double[] ToArray(XYZ vector)
+        {
+            return new double[] { vector.X, vector.Y, vector.Z };
         }
 
         private static void Collect(

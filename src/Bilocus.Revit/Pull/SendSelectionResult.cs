@@ -40,6 +40,12 @@ namespace Bilocus.Revit.Pull
 
         public int TotalTriangles;
 
+        // Elements sent as revit_instance, and how many distinct meshes they
+        // share. The ratio is the measure of what instancing saves: ten
+        // windows on one mesh is ten times less geometry on the wire.
+        public int InstanceCount;
+        public int SharedMeshCount;
+
         // The two phases must be timed separately: this is the dominant cost
         // of this part of the bridge and nobody knows which of the two
         // dominates until it is measured on real elements.
@@ -67,6 +73,12 @@ namespace Bilocus.Revit.Pull
             {
                 text = text + string.Format(
                     "\nLast failed element: {0} - {1}", LastFailureLabel, LastFailureError);
+            }
+
+            if (InstanceCount > 0)
+            {
+                text = text + string.Format(CultureInfo.InvariantCulture,
+                    "\nInstanced: {0} elements on {1} shared meshes", InstanceCount, SharedMeshCount);
             }
 
             text = text + string.Format(CultureInfo.InvariantCulture,

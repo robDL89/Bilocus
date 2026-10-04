@@ -100,5 +100,27 @@ namespace Bilocus.Revit.Net.Tests
                 "WARNING: send interrupted - send interrupted after 3 elements, failed on \"Wall [4]\"",
                 text);
         }
+
+        [Fact]
+        public void BuildSummaryText_WithInstances_ReportsSharedMeshes()
+        {
+            SendSelectionResult result = new SendSelectionResult();
+            result.SentCount = 12;
+            result.InstanceCount = 10;
+            result.SharedMeshCount = 2;
+
+            Assert.Contains("Instanced: 10 elements on 2 shared meshes", result.BuildSummaryText());
+        }
+
+        // No instances, no line: the summary of a selection of walls stays
+        // exactly as it was.
+        [Fact]
+        public void BuildSummaryText_WithoutInstances_HasNoInstancedLine()
+        {
+            SendSelectionResult result = new SendSelectionResult();
+            result.SentCount = 3;
+
+            Assert.DoesNotContain("Instanced", result.BuildSummaryText());
+        }
     }
 }

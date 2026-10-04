@@ -319,5 +319,5 @@ def test_socket_reader_decodes_a_real_frame():
 
 def test_constants_match_design():
     assert protocol.DEFAULT_PORT == 9877
-    assert protocol.PROTOCOL_VERSION == 1
+    assert protocol.PROTOCOL_VERSION == 2
     assert protocol.METERS_PER_FOOT == 0.3048
