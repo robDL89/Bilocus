@@ -568,27 +568,8 @@ regardless of which command caused them.
 `GeometryInstance` objects are flattened on the Revit side for `revit_geometry`:
 there is no sensible local rotation left to send, so `origin` is a
 translation and not a full matrix. Instanceable elements take
-`revit_instance` instead, see below.
-
-#### `revit_mesh` / `revit_instance` (instancing)
-
-A family instance whose top-level geometry is exactly one
-`GeometryInstance` is sent as `revit_instance`: the symbol geometry,
-tessellated in the family's local space, travels once per batch as
-`revit_mesh`, keyed by `mesh_key` (hash of the positions quantized to
-0.01 mm), and every instance points at it. Here `origin` does not apply:
-the instance carries a full row-major `matrix` (rotation and mirroring
-included) and the object's origin is the family insertion point.
-Everything else - walls, floors, cut or joined instances - stays
-`revit_geometry`.
-
-On the Blender side objects with the same key share one mesh datablock.
-A shared mesh the user has touched (edited geometry, replaced via Ctrl+L,
-or in edit mode at pull time) is never replaced by a pull; an untouched
-one follows Revit and carries its material slots over. The decision table
-and the transitions between flat and instanced are in
-`docs/superpowers/specs/2026-10-04-revit-mesh-instancing-design.md`
-section 4.4.
+`revit_instance` instead, see the `revit_mesh` / `revit_instance`
+(instancing) subsection below.
 
 `origin` is the **center of the bounding box** of the element, computed
 during tessellation by `TessellatedMesh.ComputeOrigin`; the vertices are
@@ -686,6 +667,26 @@ is only the closing message. The accounting is closed and the panel
 reports the pull as partial. A `revit_geometry` arriving without a
 `revit_batch_begin` opens an implicit batch instead of being discarded:
 same choice, a lost header should not cost a wall.
+
+#### `revit_mesh` / `revit_instance` (instancing)
+
+A family instance whose top-level geometry is exactly one
+`GeometryInstance` is sent as `revit_instance`: the symbol geometry,
+tessellated in the family's local space, travels once per batch as
+`revit_mesh`, keyed by `mesh_key` (hash of the positions quantized to
+0.01 mm), and every instance points at it. Here `origin` does not apply:
+the instance carries a full row-major `matrix` (rotation and mirroring
+included) and the object's origin is the family insertion point.
+Everything else - walls, floors, cut or joined instances - stays
+`revit_geometry`.
+
+On the Blender side objects with the same key share one mesh datablock.
+A shared mesh the user has touched (edited geometry, replaced via Ctrl+L,
+or in edit mode at pull time) is never replaced by a pull; an untouched
+one follows Revit and carries its material slots over. The decision table
+and the transitions between flat and instanced are in
+`docs/superpowers/specs/2026-10-04-revit-mesh-instancing-design.md`
+section 4.4.
 
 #### `bake_result`
 
