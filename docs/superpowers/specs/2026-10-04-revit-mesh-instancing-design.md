@@ -77,7 +77,10 @@ added only if a real model shows the Revit side is the bottleneck.
 - `ProtocolVersion` / `PROTOCOL_VERSION` go from 1 to 2. The hello check
   is already strict equality, so a mismatched pair fails with a clear
   message. Both components ship in the same release.
-- Golden vectors in `tests/vectors/frames.json` for both new messages.
+- `tests/vectors/frames.json` gets `protocol_version: 2`. The golden
+  vectors fix framing and constants only, never header shapes (5.5 of
+  DESIGN.md): the shape of the two new headers is tested on each side,
+  like the existing ones.
 
 ## 4. Blender side
 
@@ -163,7 +166,9 @@ batch continues.
 - **C# pure**: quantization and hash (same geometry -> same key, noise
   below 0.01 mm -> same key, different geometry -> different key), matrix
   conversion (feet -> meters, mirrored instance -> negative determinant).
-- **Golden vectors** for `revit_mesh` and `revit_instance`.
+- **Header shape** of `revit_mesh` and `revit_instance` tested on both
+  sides (builder in C#, reader in Python); protocol constant checked by
+  the golden vectors.
 - **Python pure**: strict header readers, mesh signature, decision table.
 - **Blender smoke**: three instances with one key share one datablock;
   edited mesh survives a re-pull; Ctrl+L to an asset, then a new element
