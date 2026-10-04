@@ -5,7 +5,7 @@ namespace Bilocus.Protocol
 {
     public static class BridgeConstants
     {
-        public const int ProtocolVersion = 1;
+        public const int ProtocolVersion = 2;
         public const string DefaultHost = "127.0.0.1";
 
         // 9876 is taken by blender-mcp: do not reuse it.

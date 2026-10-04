@@ -110,7 +110,7 @@ def test_receive_frames_in_sequence():
         read_one_message(conn)  # hello
 
         conn.sendall(protocol.encode_frame({
-            "type": "hello_ack", "protocol_version": 1,
+            "type": "hello_ack", "protocol_version": protocol.PROTOCOL_VERSION,
             "revit_version": "2025", "doc_title": "Test Project"}))
         conn.sendall(protocol.encode_frame({"type": "revit_batch_begin", "count": 2}))
         conn.sendall(protocol.encode_frame({"type": "revit_batch_end"}))

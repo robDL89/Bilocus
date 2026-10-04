@@ -18,7 +18,7 @@ namespace Bilocus.Revit.Net.Tests
     public class BridgeServerTests
     {
         private const string Hello =
-            "{\"type\": \"hello\", \"protocol_version\": 1, \"client\": \"blender\"}";
+            "{\"type\": \"hello\", \"protocol_version\": 2, \"client\": \"blender\"}";
 
         [Fact]
         public void StartListensAndShowsInStatus()
@@ -55,7 +55,7 @@ namespace Bilocus.Revit.Net.Tests
                 Assert.Empty(drained[0].Payload);
 
                 // what MessageHandler would do on the main thread
-                string ack = "{\"type\":\"hello_ack\",\"protocol_version\":1,\"revit_version\":\"2025\",\"doc_title\":\"\"}";
+                string ack = "{\"type\":\"hello_ack\",\"protocol_version\":2,\"revit_version\":\"2025\",\"doc_title\":\"\"}";
                 Assert.True(h.Server.Send(new Frame(ack, null)));
 
                 Frame reply = FrameCodec.Read(stream);

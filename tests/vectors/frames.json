@@ -1,7 +1,7 @@
 {
   "description": "Golden vectors for Bilocus framing. header is the exact string to serialize, payload_hex and frame_hex are lowercase hex with no separators. The constants block pins down the wire contract's values: both suites assert it against their own constants, so a change on one side only makes the other fail.",
   "constants": {
-    "protocol_version": 1,
+    "protocol_version": 2,
     "default_port": 9877,
     "default_host": "127.0.0.1",
     "meters_per_foot": 0.3048,
