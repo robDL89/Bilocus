@@ -688,6 +688,12 @@ and the transitions between flat and instanced are in
 `docs/superpowers/specs/2026-10-04-revit-mesh-instancing-design.md`
 section 4.4.
 
+The object rules for `revit_geometry` above (update in place, search across
+`bpy.data.objects`, the reset toggle, the collection not cleared) apply to
+instance objects too, with `matrix` in place of `origin` for placement.
+`revit_mesh` and `revit_instance` arriving without a `revit_batch_begin`
+open an implicit batch, like `revit_geometry`.
+
 #### `bake_result`
 
 The response to `bake_end` (`action` = `"bake"`) and to `bake_remove`
