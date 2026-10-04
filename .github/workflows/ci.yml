@@ -64,3 +64,7 @@ jobs:
         run: |
           ./blender/blender --background --factory-startup --python-exit-code 1 \
             --python tests/blender/smoke_bake.py
+      - name: Run tests/blender/smoke_pull.py
+        run: |
+          ./blender/blender --background --factory-startup --python-exit-code 1 \
+            --python tests/blender/smoke_pull.py

@@ -205,6 +205,16 @@ def _handle_message(header, payload, now):
         if problem is not None:
             _log(problem)
 
+    elif kind == "revit_mesh":
+        problem = imp.handle_mesh(header, payload, now)
+        if problem is not None:
+            _log(problem)
+
+    elif kind == "revit_instance":
+        problem = imp.handle_instance(header, payload, now)
+        if problem is not None:
+            _log(problem)
+
     elif kind == "revit_batch_end":
         if not imp.handle_batch_end(now):
             # closed without any batch open: not a problem, just a message
