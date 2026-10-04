@@ -19,8 +19,8 @@ using Frame = Bilocus.Protocol.Frame;
 namespace Bilocus.Revit.Pull
 {
     // "Send selection" button: reads uidoc.Selection, tessellates every
-    // element and sends revit_batch_begin / revit_geometry / revit_batch_end
-    // (DESIGN.md 5.4) to the connected client.
+    // element and sends revit_batch_begin / revit_mesh / revit_instance /
+    // revit_geometry / revit_batch_end (DESIGN.md 5.4) to the connected client.
     [Transaction(TransactionMode.Manual)]
     public sealed class SendSelectionCommand : IExternalCommand
     {
@@ -64,12 +64,18 @@ namespace Bilocus.Revit.Pull
             SendSelectionResult result = new SendSelectionResult();
             List<PendingElement> ready = new List<PendingElement>();
 
+            // One mesh per key: the duplicates produced by tessellating every
+            // instance are dropped here, so a selection of a hundred windows
+            // keeps one window's geometry in memory, not a hundred.
+            Dictionary<string, TessellatedMesh> sharedMeshes = new Dictionary<string, TessellatedMesh>();
+
             long tessellateStart = Stopwatch.GetTimestamp();
             foreach (ElementId id in selectedIds)
             {
                 Element element = doc.GetElement(id);
 
                 TessellatedMesh mesh;
+                InstancedMesh instanced;
                 try
                 {
                     // Before tessellation, which is the expensive part: a
@@ -81,7 +87,8 @@ namespace Bilocus.Revit.Pull
                         continue;
                     }
 
-                    mesh = ElementTessellator.Tessellate(element);
+                    instanced = ElementTessellator.TessellateInstance(element);
+                    mesh = instanced != null ? instanced.Mesh : ElementTessellator.Tessellate(element);
                 }
                 catch (Exception ex)
                 {
@@ -114,7 +121,18 @@ namespace Bilocus.Revit.Pull
                 long elementIdValue = id.Value;
                 string name = ElementNaming.BuildName(category, typeName, elementIdValue);
 
-                ready.Add(new PendingElement(elementIdValue, name, category, typeName, mesh));
+                if (instanced != null)
+                {
+                    if (!sharedMeshes.ContainsKey(instanced.MeshKey))
+                    {
+                        sharedMeshes.Add(instanced.MeshKey, instanced.Mesh);
+                    }
+                    ready.Add(PendingElement.Instance(elementIdValue, name, category, typeName, instanced));
+                }
+                else
+                {
+                    ready.Add(PendingElement.Flat(elementIdValue, name, category, typeName, mesh));
+                }
             }
             result.TessellateMs = ElapsedMs(tessellateStart);
 
@@ -128,7 +146,7 @@ namespace Bilocus.Revit.Pull
             }
 
             long sendStart = Stopwatch.GetTimestamp();
-            SendBatch(server, ready, result);
+            SendBatch(server, ready, sharedMeshes, result);
             result.SendMs = ElapsedMs(sendStart);
 
             TaskDialog.Show("Bilocus", result.BuildSummaryText());
@@ -136,7 +154,8 @@ namespace Bilocus.Revit.Pull
         }
 
         private static void SendBatch(
-            BridgeServer server, List<PendingElement> ready, SendSelectionResult result)
+            BridgeServer server, List<PendingElement> ready,
+            Dictionary<string, TessellatedMesh> sharedMeshes, SendSelectionResult result)
         {
             string beginHeader = MessageRouter.BuildBatchBegin(ready.Count);
             if (!server.Send(new Frame(beginHeader, null)))
@@ -146,22 +165,55 @@ namespace Bilocus.Revit.Pull
                 return;
             }
 
+            HashSet<string> sentKeys = new HashSet<string>();
             bool midBatchFailure = false;
             foreach (PendingElement pending in ready)
             {
-                // Mesh.Origin is the bounding box center of the element in
-                // world coordinates: the payload's vertices are already
-                // local, and this is the field that puts them back in place
-                // in Blender.
-                string geometryHeader = MessageRouter.BuildGeometryHeader(
-                    pending.ElementIdValue, pending.Name, pending.Category, pending.TypeName,
-                    pending.Mesh.VertexCount, pending.Mesh.TriangleCount,
-                    pending.Mesh.Origin, ElementNaming.DefaultColor());
+                bool sent;
+                if (pending.MeshKey == null)
+                {
+                    // Mesh.Origin is the bounding box center of the element in
+                    // world coordinates: the payload's vertices are already
+                    // local, and this is the field that puts them back in place
+                    // in Blender.
+                    string geometryHeader = MessageRouter.BuildGeometryHeader(
+                        pending.ElementIdValue, pending.Name, pending.Category, pending.TypeName,
+                        pending.Mesh.VertexCount, pending.Mesh.TriangleCount,
+                        pending.Mesh.Origin, ElementNaming.DefaultColor());
+                    byte[] payload = MeshPayloadWriter.Write(
+                        pending.Mesh.Positions, pending.Mesh.Normals, pending.Mesh.Indices);
+                    sent = server.Send(new Frame(geometryHeader, payload));
+                }
+                else
+                {
+                    // The shared mesh goes out once per batch, right before
+                    // its first instance. Revit does not know what Blender
+                    // already has, and does not guess: Blender decides.
+                    sent = true;
+                    if (!sentKeys.Contains(pending.MeshKey))
+                    {
+                        TessellatedMesh shared = sharedMeshes[pending.MeshKey];
+                        string meshHeader = MessageRouter.BuildMeshHeader(
+                            pending.MeshKey, shared.VertexCount, shared.TriangleCount);
+                        byte[] meshPayload = MeshPayloadWriter.Write(
+                            shared.Positions, shared.Normals, shared.Indices);
+                        sent = server.Send(new Frame(meshHeader, meshPayload));
+                        if (sent)
+                        {
+                            sentKeys.Add(pending.MeshKey);
+                            result.SharedMeshCount++;
+                        }
+                    }
+                    if (sent)
+                    {
+                        string instanceHeader = MessageRouter.BuildInstanceHeader(
+                            pending.ElementIdValue, pending.Name, pending.Category, pending.TypeName,
+                            pending.MeshKey, pending.Matrix, ElementNaming.DefaultColor());
+                        sent = server.Send(new Frame(instanceHeader, null));
+                    }
+                }
 
-                byte[] payload = MeshPayloadWriter.Write(
-                    pending.Mesh.Positions, pending.Mesh.Normals, pending.Mesh.Indices);
-
-                if (!server.Send(new Frame(geometryHeader, payload)))
+                if (!sent)
                 {
                     // If sending fails halfway through the batch, there is no
                     // insisting: neither a retry on this element nor an
@@ -180,7 +232,8 @@ namespace Bilocus.Revit.Pull
                 }
 
                 result.SentCount++;
-                result.TotalTriangles += pending.Mesh.TriangleCount;
+                if (pending.MeshKey != null) { result.InstanceCount++; }
+                result.TotalTriangles += pending.TriangleCount;
             }
 
             // A single closing attempt, always, because the batch was opened
@@ -276,8 +329,8 @@ namespace Bilocus.Revit.Pull
         }
 
         // An element already tessellated successfully, waiting to be sent.
-        // Holds what is needed to build the header without having to read the
-        // Element a second time during sending.
+        // Flat elements carry their own mesh; instances carry only the key
+        // of a mesh held once in the batch's dictionary, and their matrix.
         private sealed class PendingElement
         {
             public readonly long ElementIdValue;
@@ -285,15 +338,37 @@ namespace Bilocus.Revit.Pull
             public readonly string Category;
             public readonly string TypeName;
             public readonly TessellatedMesh Mesh;
+            public readonly string MeshKey;
+            public readonly float[] Matrix;
+            public readonly int TriangleCount;
 
-            public PendingElement(
-                long elementIdValue, string name, string category, string typeName, TessellatedMesh mesh)
+            private PendingElement(
+                long elementIdValue, string name, string category, string typeName,
+                TessellatedMesh mesh, string meshKey, float[] matrix, int triangleCount)
             {
                 ElementIdValue = elementIdValue;
                 Name = name;
                 Category = category;
                 TypeName = typeName;
                 Mesh = mesh;
+                MeshKey = meshKey;
+                Matrix = matrix;
+                TriangleCount = triangleCount;
+            }
+
+            public static PendingElement Flat(
+                long elementIdValue, string name, string category, string typeName, TessellatedMesh mesh)
+            {
+                return new PendingElement(
+                    elementIdValue, name, category, typeName, mesh, null, null, mesh.TriangleCount);
+            }
+
+            public static PendingElement Instance(
+                long elementIdValue, string name, string category, string typeName, InstancedMesh instanced)
+            {
+                return new PendingElement(
+                    elementIdValue, name, category, typeName, null,
+                    instanced.MeshKey, instanced.Matrix, instanced.Mesh.TriangleCount);
             }
         }
     }
