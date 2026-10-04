@@ -739,3 +739,135 @@ def test_pick_pulled_keeps_the_old_behavior_for_objects_without_the_saved_name()
 
 def test_pick_pulled_with_no_candidates():
     assert bridge_receive.pick_pulled([]) is None
+
+
+# --- instancing: revit_mesh / revit_instance -------------------------------
+
+IDENTITY = (1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0,
+            0.0, 0.0, 0.0, 1.0)
+
+
+def instance_header(**overrides):
+    header = {"type": "revit_instance", "element_id": 42, "name": "Windows [42]",
+              "category": "Windows", "type_name": "120x140", "mesh_key": "00ff",
+              "matrix": list(IDENTITY), "color": [0.5, 0.5, 0.5, 1.0]}
+    header.update(overrides)
+    return header
+
+
+def test_reads_mesh_header():
+    fields = bridge_receive.read_mesh_header(
+        {"type": "revit_mesh", "mesh_key": "00ff", "vert_count": 3, "tri_count": 1})
+    assert fields == {"mesh_key": "00ff", "vert_count": 3, "tri_count": 1}
+
+
+@pytest.mark.parametrize("key", [None, "", "   ", 7])
+def test_mesh_header_without_a_usable_key_is_rejected(key):
+    header = {"type": "revit_mesh", "vert_count": 3, "tri_count": 1}
+    if key is not None:
+        header["mesh_key"] = key
+    with pytest.raises(BridgeMessageError):
+        bridge_receive.read_mesh_header(header)
+
+
+def test_reads_instance_header():
+    fields = bridge_receive.read_instance_header(instance_header())
+    assert fields["element_id"] == "42"
+    assert fields["mesh_key"] == "00ff"
+    assert fields["matrix"] == IDENTITY
+    assert fields["type_name"] == "120x140"
+
+
+def test_instance_without_name_gets_a_findable_one():
+    fields = bridge_receive.read_instance_header(instance_header(name=""))
+    assert fields["name"] == "Revit 42"
+
+
+@pytest.mark.parametrize("matrix", [
+    None,
+    [1.0] * 15,
+    [1.0] * 15 + ["x"],
+    [1.0] * 15 + [True],
+    list(IDENTITY[:15]) + [float("nan")],
+    list(IDENTITY[:3]) + [float("inf")] + list(IDENTITY[4:]),
+])
+def test_malformed_matrix_is_a_content_error(matrix):
+    header = instance_header()
+    if matrix is None:
+        del header["matrix"]
+    else:
+        header["matrix"] = matrix
+    with pytest.raises(BridgeMessageError):
+        bridge_receive.read_instance_header(header)
+
+
+def test_singular_matrix_is_rejected():
+    flat = list(IDENTITY)
+    flat[10] = 0.0  # scale 0 on Z: the mesh would be squashed flat
+    with pytest.raises(BridgeMessageError):
+        bridge_receive.read_instance_header(instance_header(matrix=flat))
+
+
+def test_mirrored_matrix_is_accepted():
+    flat = list(IDENTITY)
+    flat[0] = -1.0
+    fields = bridge_receive.read_instance_header(instance_header(matrix=flat))
+    assert bridge_receive.determinant3x3(fields["matrix"]) < 0
+
+
+def test_matrix_rows_are_row_major():
+    flat = list(IDENTITY)
+    flat[3], flat[7], flat[11] = 1.0, 2.0, 3.0
+    rows = bridge_receive.matrix_rows(tuple(flat))
+    assert rows[0] == (1.0, 0.0, 0.0, 1.0)
+    assert rows[1][3] == 2.0
+    assert rows[2][3] == 3.0
+    assert rows[3] == (0.0, 0.0, 0.0, 1.0)
+
+
+def test_mesh_signature_changes_with_coordinates_and_faces():
+    coords = struct.pack("<9f", *KNOWN_POSITIONS)
+    moved = struct.pack("<9f", *((0.1,) + KNOWN_POSITIONS[1:]))
+    base = bridge_receive.mesh_signature(coords, 1)
+    assert base == bridge_receive.mesh_signature(coords, 1)
+    assert base != bridge_receive.mesh_signature(moved, 1)
+    assert base != bridge_receive.mesh_signature(coords, 2)
+
+
+def test_most_used_picks_the_majority():
+    assert bridge_receive.most_used(["a", "b", "b"]) == "b"
+
+
+def test_most_used_on_a_tie_picks_the_first_met():
+    assert bridge_receive.most_used(["a", "b", "b", "a"]) == "a"
+
+
+def test_most_used_of_nothing_is_none():
+    assert bridge_receive.most_used([]) is None
+
+
+# The decision table of spec section 4.4: (exists, was_instance, touched,
+# reset) -> (replace_mesh, apply_matrix).
+@pytest.mark.parametrize("exists, was_instance, touched, reset, expected", [
+    (False, False, False, False, (True, True)),    # new object
+    (True, True, True, False, (False, False)),     # touched: your work wins
+    (True, True, True, True, (False, True)),       # touched, toggle on: only the transform
+    (True, True, False, False, (True, False)),     # untouched: follows Revit
+    (True, True, False, True, (True, True)),
+    (True, False, False, False, (True, True)),     # was flat: local frame changed, always placed
+    (True, False, True, False, (True, True)),
+])
+def test_instance_update_decision_table(exists, was_instance, touched, reset, expected):
+    assert bridge_receive.instance_update(exists, was_instance, touched, reset) == expected
+
+
+@pytest.mark.parametrize("was_instance, reset, expected", [
+    (False, False, False),
+    (False, True, True),
+    (True, False, True),   # instance -> flat: the frame changed, always reset
+    (True, True, True),
+])
+def test_flat_update_reset_rule(was_instance, reset, expected):
+    assert bridge_receive.flat_update_resets_transform(was_instance, reset) == expected
