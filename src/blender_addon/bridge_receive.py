@@ -435,6 +435,11 @@ class BatchState(object):
         self.created = 0
         self.updated = 0
         self.failed = 0
+        self.overwritten = 0
+        # revit_mesh payloads of this batch, by key. They become datablocks
+        # only when an instance uses them (bridge_import), so a batch that
+        # dies halfway leaves no orphan meshes in the file.
+        self.meshes = {}
         self.last_activity = 0.0
 
     def begin(self, count, now):
@@ -450,17 +455,26 @@ class BatchState(object):
         self.message = self._progress()
         return note
 
-    def record(self, created, now):
+    def record(self, created, now, overwritten=False):
         """An imported element. created tells whether it was created or
-        updated."""
+        updated; overwritten whether the user's edits on its mesh were lost
+        because the element no longer shares geometry (instance -> flat)."""
         self._ensure_open(now)
         self.received += 1
         if created:
             self.created += 1
         else:
             self.updated += 1
+        if overwritten:
+            self.overwritten += 1
         self.last_activity = now
         self.message = self._progress()
+
+    def store_mesh(self, key, positions, indices, now):
+        """A revit_mesh: kept until the end of the batch."""
+        self._ensure_open(now)
+        self.meshes[key] = (positions, indices)
+        self.last_activity = now
 
     def record_failure(self, now):
         self._ensure_open(now)
@@ -473,6 +487,7 @@ class BatchState(object):
         if not self.open:
             return False
         self.open = False
+        self.meshes = {}
         self.last_activity = now
         self.message = self._summary()
         return True
@@ -489,6 +504,7 @@ class BatchState(object):
         else:
             return None
         self.open = False
+        self.meshes = {}
         self.message = "{} - INTERRUPTED: {}".format(self._summary(), reason)
         return reason
 
@@ -513,6 +529,11 @@ class BatchState(object):
     def _summary(self):
         text = "{} objects: {} created, {} updated".format(
             self.received, self.created, self.updated)
+        if self.overwritten:
+            # The only case where a pull discards the user's work: say it
+            # where the user looks, not only in the console.
+            text = "{}, {} edited mesh{} overwritten".format(
+                text, self.overwritten, "" if self.overwritten == 1 else "es")
         return self._with_failures(text)
 
     def _with_failures(self, text):

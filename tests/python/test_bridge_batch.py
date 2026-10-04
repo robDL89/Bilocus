@@ -213,3 +213,56 @@ def test_every_message_is_a_plain_ascii_string():
         assert isinstance(message, str)
         assert message
         message.encode("ascii")
+
+
+# --- shared meshes of the batch ----------------------------------------------
+
+def test_stored_meshes_live_until_the_batch_ends():
+    state = make_state()
+    state.begin(2, 100.0)
+    state.store_mesh("k", (0.0,) * 9, (0, 1, 2), 100.1)
+    assert state.meshes["k"] == ((0.0,) * 9, (0, 1, 2))
+    state.end(100.2)
+    assert state.meshes == {}
+
+
+def test_an_interrupted_batch_drops_its_meshes():
+    state = make_state()
+    state.begin(2, 100.0)
+    state.store_mesh("k", (0.0,) * 9, (0, 1, 2), 100.1)
+    assert state.check_interrupted(False, 100.2) is not None
+    assert state.meshes == {}
+
+
+def test_a_new_begin_drops_the_previous_meshes():
+    state = make_state()
+    state.begin(2, 100.0)
+    state.store_mesh("k", (0.0,) * 9, (0, 1, 2), 100.1)
+    state.begin(1, 100.2)
+    assert state.meshes == {}
+
+
+def test_a_mesh_without_begin_opens_an_implicit_batch_and_survives():
+    state = make_state()
+    state.store_mesh("k", (0.0,) * 9, (0, 1, 2), 100.0)
+    assert state.open
+    state.record(True, 100.1)
+    assert "k" in state.meshes
+
+
+def test_overwritten_edits_are_reported_in_the_summary():
+    state = make_state()
+    state.begin(2, 100.0)
+    state.record(False, 100.1, overwritten=True)
+    state.record(False, 100.2)
+    state.end(100.3)
+    assert state.overwritten == 1
+    assert "1 edited mesh overwritten" in state.message
+
+
+def test_no_overwrite_no_mention():
+    state = make_state()
+    state.begin(1, 100.0)
+    state.record(True, 100.1)
+    state.end(100.2)
+    assert "overwritten" not in state.message
