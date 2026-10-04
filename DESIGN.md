@@ -507,6 +507,8 @@ object in Blender deletes nothing in Revit.
 | `hello_ack` | `{type, protocol_version, revit_version, doc_title}` | - |
 | `revit_batch_begin` | `{type, count}` | - |
 | `revit_geometry` | `{type, element_id, name, category, type_name, vert_count, tri_count, origin, color}` | positions (vert_count*3 f32) + normals (vert_count*3 f32) + indices (tri_count*3 u32) |
+| `revit_mesh` | `{type, mesh_key, vert_count, tri_count}` | positions + normals + indices, same as `revit_geometry` |
+| `revit_instance` | `{type, element_id, name, category, type_name, mesh_key, matrix, color}` | - |
 | `revit_batch_end` | `{type}` | - |
 | `proxy_result` | `{type, obj_id, name, ok, requested, created, arcs, replaced, skipped, failed, planes_deleted, planes_kept, message}` | - |
 | `bake_result` | `{type, action, ok, requested, created, replaced, recreated, removed, failed, missing, as_mesh, faces_planar, faces_triangulated, target, switched, not_moved, message}` | - |
@@ -563,9 +565,30 @@ regardless of which command caused them.
 
 **Positions travel in coordinates LOCAL to the element**, and `origin`
 (three floats, meters, world coordinates) says where the element is. The
-`GeometryInstance` objects are flattened on the Revit side regardless:
+`GeometryInstance` objects are flattened on the Revit side for `revit_geometry`:
 there is no sensible local rotation left to send, so `origin` is a
-translation and not a full matrix.
+translation and not a full matrix. Instanceable elements take
+`revit_instance` instead, see below.
+
+#### `revit_mesh` / `revit_instance` (instancing)
+
+A family instance whose top-level geometry is exactly one
+`GeometryInstance` is sent as `revit_instance`: the symbol geometry,
+tessellated in the family's local space, travels once per batch as
+`revit_mesh`, keyed by `mesh_key` (hash of the positions quantized to
+0.01 mm), and every instance points at it. Here `origin` does not apply:
+the instance carries a full row-major `matrix` (rotation and mirroring
+included) and the object's origin is the family insertion point.
+Everything else - walls, floors, cut or joined instances - stays
+`revit_geometry`.
+
+On the Blender side objects with the same key share one mesh datablock.
+A shared mesh the user has touched (edited geometry, replaced via Ctrl+L,
+or in edit mode at pull time) is never replaced by a pull; an untouched
+one follows Revit and carries its material slots over. The decision table
+and the transitions between flat and instanced are in
+`docs/superpowers/specs/2026-10-04-revit-mesh-instancing-design.md`
+section 4.4.
 
 `origin` is the **center of the bounding box** of the element, computed
 during tessellation by `TessellatedMesh.ComputeOrigin`; the vertices are

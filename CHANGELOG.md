@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- New: **instanced pull.** Family instances with identical geometry share
+  one mesh in Blender: edit, UV or replace one (Ctrl+L Link Object Data
+  from an asset) and every copy follows. A new element of the same type
+  arrives with what its siblings show. A shared mesh you have edited is
+  kept on the next pull; an untouched one follows Revit. Protocol version
+  2: update both the Revit add-in and the Blender add-on.
+
 ## 0.1.1 - 2026-10-03
 
 - Fixed: **Bake Family could overwrite an existing family.** A new family
