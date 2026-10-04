@@ -138,5 +138,80 @@ namespace Bilocus.Revit.Net.Tests
             Assert.Throws<ArgumentNullException>(() => MessageRouter.BuildGeometryHeader(
                 1L, null, "Walls", "Base wall", 3, 1, Origin(), new float[] { 0, 0, 0, 1 }));
         }
+
+        private static float[] Identity()
+        {
+            return new float[] { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
+        }
+
+        [Fact]
+        public void BuildMeshHeader_HasKeyAndCounts()
+        {
+            string header = MessageRouter.BuildMeshHeader("00ff", 12, 4);
+
+            JsonElement root = JsonDocument.Parse(header).RootElement;
+            Assert.Equal("revit_mesh", root.GetProperty("type").GetString());
+            Assert.Equal("00ff", root.GetProperty("mesh_key").GetString());
+            Assert.Equal(12, root.GetProperty("vert_count").GetInt32());
+            Assert.Equal(4, root.GetProperty("tri_count").GetInt32());
+        }
+
+        [Fact]
+        public void BuildMeshHeader_EmptyKey_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => MessageRouter.BuildMeshHeader("", 3, 1));
+            Assert.Throws<ArgumentNullException>(() => MessageRouter.BuildMeshHeader(null, 3, 1));
+        }
+
+        [Fact]
+        public void BuildInstanceHeader_HasAllFields()
+        {
+            float[] matrix = Identity();
+            matrix[3] = 1.5f;
+            string header = MessageRouter.BuildInstanceHeader(
+                42L, "Windows - 120x140 [42]", "Windows", "120x140", "00ff",
+                matrix, new float[] { 0.45f, 0.55f, 0.65f, 1f });
+
+            JsonElement root = JsonDocument.Parse(header).RootElement;
+            Assert.Equal("revit_instance", root.GetProperty("type").GetString());
+            Assert.Equal(42L, root.GetProperty("element_id").GetInt64());
+            Assert.Equal("Windows - 120x140 [42]", root.GetProperty("name").GetString());
+            Assert.Equal("Windows", root.GetProperty("category").GetString());
+            Assert.Equal("120x140", root.GetProperty("type_name").GetString());
+            Assert.Equal("00ff", root.GetProperty("mesh_key").GetString());
+
+            JsonElement m = root.GetProperty("matrix");
+            Assert.Equal(16, m.GetArrayLength());
+            Assert.Equal(1.5f, m[3].GetSingle());
+            Assert.Equal(1f, m[15].GetSingle());
+
+            Assert.Equal(4, root.GetProperty("color").GetArrayLength());
+            Assert.False(root.TryGetProperty("vert_count", out _));
+        }
+
+        [Fact]
+        public void BuildInstanceHeader_NullCategoryAndTypeName_BecomeEmptyStrings()
+        {
+            string header = MessageRouter.BuildInstanceHeader(
+                1L, "x", null, null, "k", Identity(), new float[] { 0, 0, 0, 1 });
+
+            JsonElement root = JsonDocument.Parse(header).RootElement;
+            Assert.Equal("", root.GetProperty("category").GetString());
+            Assert.Equal("", root.GetProperty("type_name").GetString());
+        }
+
+        [Fact]
+        public void BuildInstanceHeader_WrongMatrixLength_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => MessageRouter.BuildInstanceHeader(
+                1L, "x", "c", "t", "k", new float[12], new float[] { 0, 0, 0, 1 }));
+        }
+
+        [Fact]
+        public void BuildInstanceHeader_EmptyKey_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => MessageRouter.BuildInstanceHeader(
+                1L, "x", "c", "t", "", Identity(), new float[] { 0, 0, 0, 1 }));
+        }
     }
 }
