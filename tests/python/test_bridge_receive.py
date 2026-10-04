@@ -810,6 +810,13 @@ def test_singular_matrix_is_rejected():
         bridge_receive.read_instance_header(instance_header(matrix=flat))
 
 
+def test_matrix_with_overflowing_determinant_is_rejected():
+    flat = list(IDENTITY)
+    flat[0] = flat[5] = flat[10] = 1e200  # finite components, det overflows to inf
+    with pytest.raises(BridgeMessageError):
+        bridge_receive.read_instance_header(instance_header(matrix=flat))
+
+
 def test_mirrored_matrix_is_accepted():
     flat = list(IDENTITY)
     flat[0] = -1.0

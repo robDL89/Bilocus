@@ -367,28 +367,36 @@ def import_instance(fields, scene=None):
 
     mesh, fresh = (_mesh_for_key(fields) if replace_mesh else (None, False))
 
-    if not exists:
-        obj = bpy.data.objects.new(fields["name"], mesh)
-        ensure_collection(scene).objects.link(obj)
-    elif replace_mesh and obj.data != mesh:
-        old_mesh = obj.data
-        # A fresh mesh inherits the material slots of the one it replaces:
-        # a texturing done on an untouched mesh survives a type change in
-        # Revit. UVs do not: the geometry is new. A mesh reused from the
-        # siblings already has its own materials and is left alone.
-        if fresh and old_mesh is not None:
-            for material in old_mesh.materials:
-                mesh.materials.append(material)
-        obj.data = mesh
-        _remove_if_orphan(old_mesh)
+    try:
+        if not exists:
+            obj = bpy.data.objects.new(fields["name"], mesh)
+            ensure_collection(scene).objects.link(obj)
+        elif replace_mesh and obj.data != mesh:
+            old_mesh = obj.data
+            # A fresh mesh inherits the material slots of the one it replaces:
+            # a texturing done on an untouched mesh survives a type change in
+            # Revit. UVs do not: the geometry is new. A mesh reused from the
+            # siblings already has its own materials and is left alone.
+            if fresh and old_mesh is not None:
+                for material in old_mesh.materials:
+                    mesh.materials.append(material)
+            obj.data = mesh
+            _remove_if_orphan(old_mesh)
 
-    if apply_matrix:
-        obj.matrix_world = Matrix(receive.matrix_rows(fields["matrix"]))
+        if apply_matrix:
+            obj.matrix_world = Matrix(receive.matrix_rows(fields["matrix"]))
 
-    if exists:
-        obj.name = fields["name"]
-    _write_properties(obj, fields)
-    obj[MESH_KEY_PROPERTY] = fields["mesh_key"]
+        if exists:
+            obj.name = fields["name"]
+        _write_properties(obj, fields)
+        obj[MESH_KEY_PROPERTY] = fields["mesh_key"]
+    except Exception:
+        # A fresh mesh nobody uses would stay in the file as an orphan:
+        # the failure is counted by handle_instance, the mesh goes away here.
+        if fresh and mesh.users == 0:
+            bpy.data.meshes.remove(mesh)
+        raise
+
     return not exists
 
 

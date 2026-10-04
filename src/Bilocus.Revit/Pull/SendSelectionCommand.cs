@@ -87,7 +87,17 @@ namespace Bilocus.Revit.Pull
                         continue;
                     }
 
-                    instanced = ElementTessellator.TessellateInstance(element);
+                    // The instance path is an optimization: when it fails the
+                    // element takes the flat path, when in doubt, flat.
+                    try
+                    {
+                        instanced = ElementTessellator.TessellateInstance(element);
+                    }
+                    catch (Exception)
+                    {
+                        instanced = null;
+                    }
+
                     mesh = instanced != null ? instanced.Mesh : ElementTessellator.Tessellate(element);
                 }
                 catch (Exception ex)

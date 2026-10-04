@@ -292,7 +292,10 @@ def _read_matrix(header):
         if not math.isfinite(component):
             raise BridgeMessageError("non-finite component in matrix: {}".format(value))
         result.append(component)
-    if abs(determinant3x3(result)) < MIN_DETERMINANT:
+    det = determinant3x3(result)
+    # Finite components can still overflow the determinant to inf or NaN,
+    # and NaN compares False against everything: check it explicitly.
+    if not math.isfinite(det) or abs(det) < MIN_DETERMINANT:
         raise BridgeMessageError("singular matrix: {}".format(value))
     return tuple(result)
 
