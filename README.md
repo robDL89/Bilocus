@@ -144,7 +144,7 @@ Download the zip files from the latest
 2. Unzip `Bilocus-Revit2024.zip` or `Bilocus-Revit2025.zip` (the one that
    matches your Revit) into
    `%AppData%\Autodesk\Revit\Addins\2024` (or `\2025`). You should get the
-   file `Bilocus.addin` and the folder `Bilocus` side by side.
+   file `Bilocus.addin` and the folder `Bilocus` side by side. **If you get error 0x80131515 once installed, you have to unlock the zip file before unzipping or just select "Bilocus.Revit.dll" and unlock inside the Addins folder based on your Revit version.**
 3. Start Revit and accept the add-in when Revit asks. A **Bilocus** tab
    appears in the ribbon.
 
