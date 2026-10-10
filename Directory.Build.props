@@ -5,7 +5,7 @@
     <Nullable>disable</Nullable>
     <Configurations>Debug;Release</Configurations>
     <!-- License: MIT for the .NET projects, see LICENSE.txt -->
-    <Version>0.1.1</Version>
+    <Version>0.2.0</Version>
     <Authors>Roberto Dolfini</Authors>
     <Company>Roberto Dolfini</Company>
     <Product>Bilocus</Product>
