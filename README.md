@@ -122,8 +122,8 @@ Thanks to Claude Code, I finally had the opportunity to build this workflow by d
 
 ## Requirements
 
-- Autodesk Revit 2024 or 2025 (more version support coming soon)
-- Blender 5.1 or 5.2 (more version support coming soon)
+- Autodesk Revit 2024, 2025, 2026 or 2027
+- Blender 4.2 LTS, 4.5 LTS, 5.1 or 5.2
 - For **Bake Family** only: the English (`Metric Generic Model.rft`) or
   English-Imperial (`Generic Model.rft`) Revit family template library.
 - Windows. Both programs run on the same computer and talk over a local
@@ -141,9 +141,9 @@ Download the zip files from the latest
 **Revit add-in**
 
 1. Close Revit.
-2. Unzip `Bilocus-Revit2024.zip` or `Bilocus-Revit2025.zip` (the one that
-   matches your Revit) into
-   `%AppData%\Autodesk\Revit\Addins\2024` (or `\2025`). You should get the
+2. Unzip the `Bilocus-Revit<version>.zip` that matches your Revit (for
+   example `Bilocus-Revit2026.zip`) into
+   `%AppData%\Autodesk\Revit\Addins\<version>` (for example `\2026`). You should get the
    file `Bilocus.addin` and the folder `Bilocus` side by side. **If you get error 0x80131515 once installed, you have to unlock the zip file before unzipping or just select "Bilocus.Revit.dll" and unlock inside the Addins folder based on your Revit version.**
 3. Start Revit and accept the add-in when Revit asks. A **Bilocus** tab
    appears in the ribbon.
@@ -151,7 +151,7 @@ Download the zip files from the latest
 If Revit reports that it cannot load the add-in, right-click the downloaded
 zip, open *Properties*, tick *Unblock*, then unzip it again.
 
-**Blender add-on** (Blender 5.1 or later: older versions are not supported)
+**Blender add-on** (Blender 4.2 or later: older versions are not supported)
 
 1. In Blender open *Edit > Preferences > Add-ons*.
 2. From the menu at the top right choose *Install from Disk* and pick
