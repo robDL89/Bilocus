@@ -14,6 +14,7 @@
 
 from array import array
 
+import bmesh
 import bpy
 from mathutils import Matrix
 
@@ -43,6 +44,12 @@ PULL_NAME_PROPERTY = "revit_pull_name"
 MESH_KEY_PROPERTY = "revit_mesh_key"
 MESH_KEY_MARK = "bilocus_mesh_key"
 MESH_SIG_MARK = "bilocus_mesh_sig"
+
+# Revit triangulates face by face and the payload carries non-indexed
+# triangles: every triangle arrives with its own three vertices. Merging
+# the coincident ones gives a connected mesh (edge loops, bevel, select
+# linked work). In meters: 0.005 mm, far below any modeled detail.
+WELD_DISTANCE = 0.000005
 
 # Scene property for the "Reset transform on pull" checkbox. Lives on the
 # Scene and not in the module because it is a FILE preference: whoever
@@ -186,6 +193,14 @@ def _build_mesh(name, positions, indices, mesh_key=None):
 
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata(verts, [], faces)
+    # before the signature: it must describe the welded mesh the user sees
+    welded = bmesh.new()
+    try:
+        welded.from_mesh(mesh)
+        bmesh.ops.remove_doubles(welded, verts=welded.verts, dist=WELD_DISTANCE)
+        welded.to_mesh(mesh)
+    finally:
+        welded.free()
     mesh.update()
     if mesh_key is not None:
         mesh[MESH_KEY_MARK] = mesh_key

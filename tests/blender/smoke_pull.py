@@ -121,6 +121,8 @@ def main():
     end()
     a, b, c = pulled(1), pulled(2), pulled(3)
     check(a.data == b.data == c.data and a.data.users == 3, "three objects, one mesh")
+    check(len(a.data.vertices) == 4 and len(a.data.polygons) == 4,
+          "12 non-indexed vertices welded into a closed tetrahedron")
     check(abs(b.location.x - 5.0) < 1e-6, "instance placed by its matrix")
     check(c.matrix_world.to_3x3().determinant() < 0, "mirrored instance keeps a negative determinant")
 

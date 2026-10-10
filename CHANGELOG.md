@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Changed: **pulled meshes are welded.** Revit triangulates each face on
+  its own, so a pulled element arrived as loose triangles. Coincident
+  vertices (within 0.005 mm) are now merged: edge loops, bevel and select
+  linked work. A shared mesh already in the file is reused as it is on
+  the next pull: weld it with Merge by Distance, or delete the objects and
+  pull them again.
 - New: **instanced pull.** Family instances with identical geometry share
   one mesh in Blender: edit, UV or replace one (Ctrl+L Link Object Data
   from an asset) and every copy follows. A new element of the same type
