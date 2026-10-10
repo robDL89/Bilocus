@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-10-10
 
 - New: **Revit 2026 and 2027.** One zip per Revit version, 2024 to 2027.
   Revit 2027 is built for .NET 10.

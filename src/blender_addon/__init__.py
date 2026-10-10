@@ -4,7 +4,7 @@
 bl_info = {
     "name": "Bilocus",
     "author": "Roberto Dolfini, with Claude Code (Anthropic)",
-    "version": (0, 1, 1),
+    "version": (0, 2, 0),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar > Bilocus",
     "description": "Live bridge to Revit over a socket",
