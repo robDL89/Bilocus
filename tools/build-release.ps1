@@ -4,6 +4,8 @@
 # Builds the release zips in dist\:
 #   Bilocus-Revit2024.zip  Bilocus.addin + Bilocus\ (net48 build)
 #   Bilocus-Revit2025.zip  Bilocus.addin + Bilocus\ (net8.0-windows build)
+#   Bilocus-Revit2026.zip  Bilocus.addin + Bilocus\ (net8.0-windows build)
+#   Bilocus-Revit2027.zip  Bilocus.addin + Bilocus\ (net10.0-windows build)
 #   Bilocus-Blender.zip    bilocus\ (add-on folder, installable from disk)
 # Every zip carries the license files that apply to its content.
 
@@ -28,7 +30,7 @@ function New-Zip($sourceDir, $zipPath) {
 # Revit add-in, one zip per Revit version.
 $project = Join-Path $root "src\Bilocus.Revit\Bilocus.Revit.csproj"
 $manifest = Join-Path $root "src\Bilocus.Revit\Bilocus.addin"
-foreach ($version in @("2024", "2025")) {
+foreach ($version in @("2024", "2025", "2026", "2027")) {
     $top = Join-Path $stage "revit-$version"
     $bin = Join-Path $top "Bilocus"
     New-Item -ItemType Directory -Path $bin -Force | Out-Null

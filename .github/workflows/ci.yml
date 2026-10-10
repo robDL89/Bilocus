@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Roberto Dolfini
 
-# Builds the Revit add-in for both Revit versions and runs every test suite:
+# Builds the Revit add-in for every Revit version and runs every test suite:
 # xUnit (net8.0 and net48), pytest, and the smoke test inside real Blender.
 name: CI
 
@@ -21,23 +21,34 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: 8.0.x
+          # 8 for Revit 2025-2026 and the tests, 10 for Revit 2027
+          dotnet-version: |
+            8.0.x
+            10.0.x
       - name: Build the add-in for Revit 2024 (net48)
         run: dotnet build src/Bilocus.Revit/Bilocus.Revit.csproj -c Release -p:RevitVersion=2024
       - name: Build the add-in for Revit 2025 (net8.0-windows)
         run: dotnet build src/Bilocus.Revit/Bilocus.Revit.csproj -c Release -p:RevitVersion=2025
+      - name: Build the add-in for Revit 2026 (net8.0-windows)
+        run: dotnet build src/Bilocus.Revit/Bilocus.Revit.csproj -c Release -p:RevitVersion=2026
+      - name: Build the add-in for Revit 2027 (net10.0-windows)
+        run: dotnet build src/Bilocus.Revit/Bilocus.Revit.csproj -c Release -p:RevitVersion=2027
       - name: Tests (net8.0 and net48)
         run: dotnet test Bilocus.sln -c Release
 
   python:
-    name: Python tests
+    name: Python tests (${{ matrix.python }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # the Python bundled with Blender 4.2-4.5 and with Blender 5.x
+        python: ["3.11", "3.13"]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
-          # the Python bundled with Blender 5.1 and 5.2
-          python-version: "3.13"
+          python-version: ${{ matrix.python }}
       - run: python -m pip install pytest
       - run: python -m pytest -q
         working-directory: tests/python
@@ -48,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        blender: ["5.1.2", "5.2.2"]
+        blender: ["4.2.23", "4.5.14", "5.1.2", "5.2.2"]
     steps:
       - uses: actions/checkout@v5
       - name: Download Blender
