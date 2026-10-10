@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- New: **Revit 2026 and 2027.** One zip per Revit version, 2024 to 2027.
+  Revit 2027 is built for .NET 10.
+- New: **Blender 4.2 LTS and 4.5 LTS.** The add-on now installs on
+  Blender 4.2 and later; CI runs the smoke tests on 4.2, 4.5, 5.1 and 5.2.
 - New: **instanced pull.** Family instances with identical geometry share
   one mesh in Blender: edit, UV or replace one (Ctrl+L Link Object Data
   from an asset) and every copy follows. A new element of the same type

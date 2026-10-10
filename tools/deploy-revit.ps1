@@ -2,7 +2,7 @@
 # Copyright (c) 2026 Roberto Dolfini
 
 param(
-    [ValidateSet("2024","2025")]
+    [ValidateSet("2024","2025","2026","2027")]
     [string]$RevitVersion = "2025"
 )
 

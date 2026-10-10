@@ -841,4 +841,4 @@ geometry. Materials and textures set aside.
 | Revit freeze from too-frequent messages | medium | throttling on the Blender side, coalescing of transforms on the same obj_id |
 | Very dense meshes make Sync slow | medium | measure; optional decimation if real usage calls for it |
 | Feedback loop after the bake | high but only from phase B | ownership tag on generated elements |
-| Revit 2024 (net48) and 2025 (net8) diverge | low | identical DC3D API; multi-target net48 / net8.0-windows |
+| Revit 2024 (net48), 2025-2026 (net8) and 2027 (net10) diverge | low | identical DC3D API; one build per Revit version, net48 / net8.0-windows / net10.0-windows, all four built in CI |
