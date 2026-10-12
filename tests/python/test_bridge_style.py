@@ -14,9 +14,21 @@ import bridge_style
 from bridge_protocol import BridgeFramingError
 
 
-def test_header_has_type_and_both_colors():
+def test_header_has_type_both_colors_and_opacity():
     header = bridge_style.build_style_header((0.2, 0.3, 0.4), (0.9, 0.8, 0.7))
-    assert header == {"type": "preview_style", "face": [0.2, 0.3, 0.4], "edge": [0.9, 0.8, 0.7]}
+    assert header == {"type": "preview_style", "face": [0.2, 0.3, 0.4],
+                      "edge": [0.9, 0.8, 0.7], "face_alpha": 1.0}
+
+
+def test_opacity_is_carried_and_rounded():
+    header = bridge_style.build_style_header((0.2, 0.3, 0.4), (0.9, 0.8, 0.7), 0.333333)
+    assert header["face_alpha"] == 0.3333
+
+
+@pytest.mark.parametrize("alpha", [-0.1, 1.5, float("nan")])
+def test_invalid_opacity_is_rejected(alpha):
+    with pytest.raises(BridgeFramingError):
+        bridge_style.build_style_header((0.2, 0.3, 0.4), (0.9, 0.8, 0.7), alpha)
 
 
 def test_components_are_rounded_to_four_decimals():

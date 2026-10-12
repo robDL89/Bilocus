@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- New: **preview opacity.** An Opacity slider next to the preview colors in
+  the Blender panel makes the preview faces translucent in Revit, to see
+  the model through them. The edges stay opaque. Applied immediately, no
+  Sync needed; with an older Blender add-in the preview stays opaque.
+
 ## 0.2.0 - 2026-10-10
 
 - New: **Revit 2026 and 2027.** One zip per Revit version, 2024 to 2027.

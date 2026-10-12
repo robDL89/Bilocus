@@ -80,6 +80,15 @@ def register_properties():
         max=1.0,
         default=style.DEFAULT_EDGE_COLOR,
         update=_on_style_changed)
+    bpy.types.Scene.bilocus_face_opacity = bpy.props.FloatProperty(
+        name="Opacity",
+        description="Opacity of the preview faces inside Revit. The edges "
+                    "stay opaque",
+        subtype='FACTOR',
+        min=0.0,
+        max=1.0,
+        default=1.0,
+        update=_on_style_changed)
 
 
 def _on_style_changed(self, context):
@@ -91,7 +100,7 @@ def _on_style_changed(self, context):
 
 def unregister_properties():
     for name in ("bilocus_warn_vertices", "bilocus_max_vertices",
-                 "bilocus_face_color", "bilocus_edge_color"):
+                 "bilocus_face_color", "bilocus_edge_color", "bilocus_face_opacity"):
         if hasattr(bpy.types.Scene, name):
             delattr(bpy.types.Scene, name)
 
@@ -258,7 +267,9 @@ def send_style(scene):
     if not client.CLIENT.running:
         return False
     try:
-        header = style.build_style_header(scene.bilocus_face_color, scene.bilocus_edge_color)
+        header = style.build_style_header(
+            scene.bilocus_face_color, scene.bilocus_edge_color,
+            getattr(scene, "bilocus_face_opacity", 1.0))
     except protocol.BridgeFramingError:
         return False
     return client.CLIENT.send(header)
