@@ -712,6 +712,10 @@ namespace Bilocus.Revit.Bake
                         {
                             ProxySchema.Mark(created[i], built[i].ObjectId);
                         }
+
+                        // The host's BL_ parameters: with Bake together the
+                        // members are often LODs, their values do not add up.
+                        FamilyParameters.Apply(familyDoc, host.Parameters, familyName);
                         return null;
                     });
                     if (refusal != null) { return ObjectWrite.Refused(refusal); }
@@ -850,6 +854,9 @@ namespace Bilocus.Revit.Bake
                         // what the user added in the editor has no mark.
                         removedMembers = RemoveOtherMembers(familyDoc, requested);
 
+                        // Added, updated, and the stale BL_ ones removed.
+                        FamilyParameters.Apply(familyDoc, host.Parameters, familyName);
+
                         // For a family the category is changed in place: it
                         // is always replaced, never recreated (contract).
                         if (familyDoc.OwnerFamily.FamilyCategoryId != category.Id)
@@ -881,6 +888,10 @@ namespace Bilocus.Revit.Bake
                 string renameNote = null;
                 string instanceRefusal = TryInTransaction(_project, ObjectTransactionPrefix + host.Name, () =>
                 {
+                    // The reload above keeps the project's type values on
+                    // purpose: the BL_ ones are written here, and only them.
+                    FamilyParameters.WriteToTypes(_project, target, host.Parameters);
+
                     List<ElementId> instances = MarkedInstancesOf(target.Id, host.ObjectId);
 
                     if (instances.Count == 1)
