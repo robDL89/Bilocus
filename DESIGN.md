@@ -346,20 +346,24 @@ within a **maximum deviation from the original vertices**, in millimeters.
   consecutive segments is not imposed.
 - **Chains break at every node that does not have exactly two edges**
   (endpoints, crossings, branches). An arc never crosses a junction.
-- **Arcs only lie on two planes for their chord** (2026-09-16, after the
-  beam test). A beam taken with Pick Lines orients its section on the
-  curve's sketch plane, and an arc on a free plane follows the osculating
-  plane: measured, a 114 m radius arc on a descending stretch had its
-  plane tilted 40 degrees and the beam rolled. Allowed planes: *plan*,
-  which contains the chord and the horizontal perpendicular to it (tilted
-  only by the chord's slope), and *section*, which contains the chord and
-  the vertical. The circle passes through the endpoints and through the
-  projection onto the plane of the middle vertex; the deviation is
-  measured in 3D. A curve that descends while turning becomes more arcs,
-  none of them rolled. Known limit: an arc on a plane tilted around the
-  chord is only recognized if the chord coincides, because the greedy
-  advance tries short chords first. The arc on a free plane is a possible
-  future third option.
+- **Arc planes are tried in a fixed order: plan, section, free**
+  (2026-09-16 after the beam test, free plane added 2026-10-12). A beam
+  taken with Pick Lines orients its section on the curve's sketch plane.
+  *Plan* contains the chord and the horizontal perpendicular to it (tilted
+  only by the chord's slope); a helix sits here, since its osculating
+  plane is the plan plane of the chord, and its beams do not roll.
+  *Section* contains the chord and the vertical. *Free* is the plane of the
+  first, middle and last vertex: an arc really lying on a plane tilted
+  sideways (a ring on an inclined plane, a curve on a roof pitch) stays one
+  arc and the beam follows that plane. The free plane is last on purpose:
+  measured, a 114 m radius arc on a descending stretch got a plane tilted
+  40 degrees by numeric accident and the beam rolled; such an arc holds up
+  on the plan plane and never reaches the free one, which is used only
+  when the vertices leave both other planes beyond the tolerance. The
+  circle passes through the endpoints and through the projection onto the
+  plane of the middle vertex; the deviation is measured in 3D. On a curve
+  that is not planar, consecutive arcs on different free planes give the
+  beam a step in roll at the joint: geometry, not an error.
 - **Arcs of at most half a turn and a radius of at most 1000 m.** Beyond
   that, three nearly aligned points give a numerically fragile center and
   the line wins.
