@@ -7,6 +7,7 @@ import bridge_bake_send as bake
 import bridge_client as client
 import bridge_collection as coll
 import bridge_fit as fit
+import bridge_params as params_logic
 import bridge_import as imp
 import bridge_protocol as protocol
 import bridge_proxy as proxy
@@ -105,6 +106,40 @@ class BILOCUS_OT_create_proxy(bpy.types.Operator):
         self.report({level}, message)
         if level == 'ERROR':
             return {'CANCELLED'}
+        return {'FINISHED'}
+
+
+class BILOCUS_OT_set_bake_param(bpy.types.Operator):
+    bl_idname = "bilocus.set_bake_param"
+    bl_label = "Set from selection"
+    bl_description = ("Sets this family parameter from the Edit Mode "
+                      "selection: edges for lengths, faces for the area. "
+                      "Frozen value: set it again if you reshape the object")
+
+    key: bpy.props.StringProperty()
+
+    def execute(self, context):
+        obj = context.active_object
+        value, problem = bake.selection_measure(obj, self.key)
+        if problem is not None:
+            self.report({'ERROR'}, problem)
+            return {'CANCELLED'}
+        obj[bake.OVERRIDE_PREFIX + self.key] = value
+        self.report({'INFO'}, "{}: {:.4f}".format(self.key, value))
+        return {'FINISHED'}
+
+
+class BILOCUS_OT_clear_bake_param(bpy.types.Operator):
+    bl_idname = "bilocus.clear_bake_param"
+    bl_label = "Back to automatic"
+    bl_description = "Removes the value set by hand: the parameter goes back to automatic"
+
+    key: bpy.props.StringProperty()
+
+    def execute(self, context):
+        obj = context.active_object
+        if obj is not None and (bake.OVERRIDE_PREFIX + self.key) in obj:
+            del obj[bake.OVERRIDE_PREFIX + self.key]
         return {'FINISHED'}
 
 
@@ -377,6 +412,7 @@ class BILOCUS_PT_panel(bpy.types.Panel):
                 box.prop(target, bake.ACCEPT_OPEN_PROPERTY, text="Accept open solid")
             if hasattr(target, bake.SMOOTH_MESH_PROPERTY):
                 box.prop(target, bake.SMOOTH_MESH_PROPERTY, text="Smooth mesh (no volume)")
+            _draw_family_params(box, target)
 
         row = box.row()
         row.enabled = target is not None
@@ -449,6 +485,38 @@ class BILOCUS_PT_panel(bpy.types.Panel):
             box.prop(context.scene, "bilocus_max_vertices")
 
 
+def _draw_family_params(layout, target):
+    """The BL_ parameters a family bake will send for the active object.
+
+    Area and volume are NOT measured here: draw() runs on every redraw of
+    the sidebar, and evaluating the mesh at that rate is what this panel
+    already avoids for the triangle count. obj.dimensions costs nothing;
+    area and volume are computed at bake time unless set by hand."""
+    box = layout.box()
+    box.label(text="Family parameters (informative)")
+    overrides = bake.overrides_of(target)
+    # area None and volume None: shown as computed at bake, not as missing
+    for key, name, _kind, value, source in params_logic.rows(
+            tuple(target.dimensions), None, None, overrides):
+        row = box.row(align=True)
+        if source == "none" and key in ("area", "volume"):
+            text = "{}: computed at bake".format(name)
+            if key == "volume":
+                text = "{} (closed mesh only)".format(text)
+        elif source == "none":
+            text = "{}: -".format(name)
+        else:
+            unit = "m2" if key == "area" else "m"
+            text = "{}: {:.3f} {} ({})".format(name, value, unit, source)
+        row.label(text=text)
+        if key in params_logic.OVERRIDABLE:
+            op = row.operator("bilocus.set_bake_param", text="", icon='EYEDROPPER')
+            op.key = key
+            if source == "set":
+                op = row.operator("bilocus.clear_bake_param", text="", icon='X')
+                op.key = key
+
+
 CLASSES = (
     BILOCUS_OT_connect,
     BILOCUS_OT_disconnect,
@@ -461,5 +529,7 @@ CLASSES = (
     BILOCUS_OT_bake_family,
     BILOCUS_OT_remove_bake,
     BILOCUS_OT_apply_bake_category,
+    BILOCUS_OT_set_bake_param,
+    BILOCUS_OT_clear_bake_param,
     BILOCUS_PT_panel,
 )
