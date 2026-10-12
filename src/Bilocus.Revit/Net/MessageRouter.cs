@@ -412,10 +412,13 @@ namespace Bilocus.Revit.Net
                 // Same rules, the other way round: absent = false, read and
                 // validated in a family batch too, where it is ignored.
                 bool smoothMesh = OptionalBool(root, "smooth_mesh", false);
+                // Absent = none. Read in a DirectShape batch too, where it is
+                // then ignored, like the flags above.
+                List<BakeParameter> parameters = OptionalBakeParameters(root);
 
                 BakeMeshRequest request = BakeMeshRequest.Parse(
                     objId, name, category, matrix, vertCount, faceCount, loopCount, triCount, payload,
-                    acceptOpen, smoothMesh);
+                    acceptOpen, smoothMesh, parameters);
 
                 // Rejects an id not announced; a second arrival of the same
                 // id replaces the first. A rejected bake_mesh, here or above,
@@ -870,6 +873,38 @@ namespace Bilocus.Revit.Net
             if (field.ValueKind == JsonValueKind.False) { return false; }
 
             throw new ContentException("field " + name + " is not a boolean");
+        }
+
+        // bake_mesh's params: absent = none. Present it must be an array of
+        // {name, kind, value}; each entry is checked by BakeParameter, whose
+        // ArgumentException the caller re-encodes as a bake_mesh error.
+        private static List<BakeParameter> OptionalBakeParameters(JsonElement root)
+        {
+            List<BakeParameter> result = new List<BakeParameter>();
+            JsonElement field;
+            if (!root.TryGetProperty("params", out field)) { return result; }
+            if (field.ValueKind != JsonValueKind.Array)
+            {
+                throw new ContentException("field params is not an array");
+            }
+            foreach (JsonElement item in field.EnumerateArray())
+            {
+                if (item.ValueKind != JsonValueKind.Object)
+                {
+                    throw new ContentException("field params: every entry must be an object");
+                }
+                string name = RequireString(item, "name");
+                string kind = RequireString(item, "kind");
+                JsonElement value;
+                double number;
+                if (!item.TryGetProperty("value", out value) || value.ValueKind != JsonValueKind.Number
+                    || !value.TryGetDouble(out number))
+                {
+                    throw new ContentException("field params: " + name + " has no numeric value");
+                }
+                result.Add(BakeParameter.Create(name, kind, number));
+            }
+            return result;
         }
 
         // bake_begin's target: absent = BakeTarget.DirectShape. If present it

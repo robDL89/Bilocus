@@ -16,9 +16,11 @@
 # guarantees that what ends up in Revit is what was seen in the preview,
 # with the same id.
 
+import bmesh
 import bpy
 
 import bridge_bake as bake
+import bridge_params as params_logic
 import bridge_client as client
 import bridge_collection as coll
 import bridge_extract as extract
@@ -412,7 +414,7 @@ def bake_selected(context=None, target="directshape", together=False):
     lost = False
     try:
         for obj, obj_id in announced:
-            problem, header, payload = _prepare_mesh(obj, obj_id, depsgraph, reject_limit)
+            problem, header, payload = _prepare_mesh(obj, obj_id, depsgraph, reject_limit, family)
             if problem is not None:
                 # Rejected before producing any bytes: the connection is
                 # intact. The object is already announced, so Revit will
@@ -471,7 +473,65 @@ def bake_selected(context=None, target="directshape", together=False):
     return _record(level, message)
 
 
-def _prepare_mesh(obj, obj_id, depsgraph, reject_limit):
+# Object custom properties holding the BL_ values set by hand, in meters
+# and square meters: bilocus_param_length, ... Frozen: not recomputed when
+# the mesh changes.
+OVERRIDE_PREFIX = "bilocus_param_"
+
+
+def measure(obj, depsgraph):
+    """(dimensions, area, volume) of the evaluated object, for the BL_
+    family parameters. dimensions is obj.dimensions (local extent times
+    scale, modifiers included); area and volume carry the object's rotation
+    and scale, no translation; volume is None when the mesh is not closed."""
+    evaluated = obj.evaluated_get(depsgraph)
+    mesh_data = evaluated.to_mesh()
+    bm = bmesh.new()
+    try:
+        bm.from_mesh(mesh_data)
+        bm.transform(obj.matrix_world.to_3x3().to_4x4())
+        area = sum(face.calc_area() for face in bm.faces)
+        closed = len(bm.edges) > 0 and all(edge.is_manifold for edge in bm.edges)
+        volume = abs(bm.calc_volume()) if closed else None
+    finally:
+        bm.free()
+        evaluated.to_mesh_clear()
+    return tuple(obj.dimensions), area, volume
+
+
+def overrides_of(obj):
+    """The BL_ values set by hand on the object, {key: value}."""
+    result = {}
+    for key in params_logic.OVERRIDABLE:
+        value = obj.get(OVERRIDE_PREFIX + key)
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            result[key] = float(value)
+    return result
+
+
+def selection_measure(obj, key):
+    """(value, problem) from the Edit Mode selection: summed edge lengths
+    for the lengths, summed face areas for the area, in world scale."""
+    if obj is None or obj.type != 'MESH' or obj.mode != 'EDIT':
+        return None, "enter Edit Mode on the object and select what to measure"
+    # a copy: transforming the edit bmesh itself would move the vertices
+    bm = bmesh.from_edit_mesh(obj.data).copy()
+    try:
+        bm.transform(obj.matrix_world.to_3x3().to_4x4())
+        if key == "area":
+            faces = [face for face in bm.faces if face.select]
+            if not faces:
+                return None, "select one or more faces"
+            return sum(face.calc_area() for face in faces), None
+        edges = [edge for edge in bm.edges if edge.select]
+        if not edges:
+            return None, "select one or more edges"
+        return sum(edge.calc_length() for edge in edges), None
+    finally:
+        bm.free()
+
+
+def _prepare_mesh(obj, obj_id, depsgraph, reject_limit, family=False):
     """(problem, header, payload): problem is None if the object is ready.
 
     Except Exception and not just BridgeFramingError: even a bpy
@@ -494,13 +554,19 @@ def _prepare_mesh(obj, obj_id, depsgraph, reject_limit):
 
         payload = bake.pack_bake_payload(
             positions, face_sizes, face_vertices, tri_vertices, tri_faces)
+        # The BL_ parameters only mean something for a family: a
+        # DirectShape has no family parameters.
+        params = None
+        if family:
+            dimensions, area, volume = measure(obj, depsgraph)
+            params = params_logic.build_params(dimensions, area, volume, overrides_of(obj))
         # counts from the same sequences passed to pack_bake_payload: this
         # is the condition for the header and the payload to agree on the
         # Revit side
         header = bake.build_bake_mesh_header(
             obj_id, obj.name, category_of(obj), obj.matrix_world,
             len(positions) // 3, len(face_sizes), len(face_vertices), len(tri_faces),
-            accept_open_of(obj), smooth_mesh_of(obj))
+            accept_open_of(obj), smooth_mesh_of(obj), params)
     except Exception as error:
         return str(error), None, None
     return None, header, payload

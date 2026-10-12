@@ -371,7 +371,7 @@ def build_bake_begin_header(obj_ids, target="directshape", host=None):
 
 def build_bake_mesh_header(obj_id, name, category, matrix,
                            vert_count, face_count, loop_count, tri_count,
-                           accept_open=False, smooth_mesh=False):
+                           accept_open=False, smooth_mesh=False, params=None):
     """The bake_mesh header. The counts must be those of the sequences
     passed to pack_bake_payload (see its docstring).
 
@@ -385,7 +385,10 @@ def build_bake_mesh_header(obj_id, name, category, matrix,
 
     smooth_mesh asks the DirectShape bake for a Revit mesh instead of a
     solid: drawn without edges, no volume. The family bake ignores it, a
-    family needs a solid. Always written, like accept_open."""
+    family needs a solid. Always written, like accept_open.
+
+    params are the BL_ family parameters (bridge_params.build_params): only
+    the family bake uses them, and the field is absent when None."""
     normalized = _normalize_object_id(obj_id)
 
     # Only a real bool. A 1 or a "true" on the wire is a content error for
@@ -432,7 +435,7 @@ def build_bake_mesh_header(obj_id, name, category, matrix,
             "the triangles must be {}".format(
                 tri_count, loop_count, face_count, loop_count - 2 * face_count))
 
-    return {
+    header = {
         "type": "bake_mesh",
         "obj_id": normalized,
         "name": label,
@@ -445,6 +448,9 @@ def build_bake_mesh_header(obj_id, name, category, matrix,
         "accept_open": accept_open,
         "smooth_mesh": smooth_mesh,
     }
+    if params is not None:
+        header["params"] = list(params)
+    return header
 
 
 def build_bake_end_header():
