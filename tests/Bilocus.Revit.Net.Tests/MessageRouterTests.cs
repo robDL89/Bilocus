@@ -1098,6 +1098,38 @@ namespace Bilocus.Revit.Net.Tests
         }
 
         [Fact]
+        public void BakeMesh_WithValidParams_IsAccepted()
+        {
+            MessageRouter router = new MessageRouter(new GeometryStore());
+            Sink sink = new Sink();
+            BakeBegin(router, sink, "obj-1");
+            Send(router, sink, BakeGolden.MeshHeaderWith("obj-1",
+                "\"params\": [{\"name\": \"BL_Length\", \"kind\": \"length\", \"value\": 2.4}]"),
+                BakeGolden.Payload());
+            Assert.Empty(sink.Sent);
+        }
+
+        // A hand-made client: the object is refused with a readable error,
+        // the batch goes on.
+        [Theory]
+        [InlineData("\"params\": {}")]
+        [InlineData("\"params\": [1]")]
+        [InlineData("\"params\": [{\"name\": \"Length\", \"kind\": \"length\", \"value\": 1}]")]
+        [InlineData("\"params\": [{\"name\": \"BL_Length\", \"kind\": \"weight\", \"value\": 1}]")]
+        [InlineData("\"params\": [{\"name\": \"BL_Length\", \"kind\": \"length\", \"value\": -1}]")]
+        [InlineData("\"params\": [{\"name\": \"BL_Length\", \"kind\": \"length\"}]")]
+        [InlineData("\"params\": [{\"name\": \"BL_Length\", \"kind\": \"length\", \"value\": 1e400}]")]
+        public void BakeMesh_WithMalformedParams_RepliesError(string field)
+        {
+            MessageRouter router = new MessageRouter(new GeometryStore());
+            Sink sink = new Sink();
+            BakeBegin(router, sink, "obj-1");
+            Send(router, sink, BakeGolden.MeshHeaderWith("obj-1", field), BakeGolden.Payload());
+            Assert.Single(sink.Sent);
+            Assert.StartsWith("bake_mesh:", ErrorMessageOf(sink, 0));
+        }
+
+        [Fact]
         public void BakeMesh_WithAMalformedCategory_RepliesError()
         {
             MessageRouter router = new MessageRouter(new GeometryStore());
