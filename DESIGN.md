@@ -179,7 +179,7 @@ failure would have to be treated as terminal.
 | `preview_style` | `{type, face, edge}` | - |
 | `proxy_edges` | `{type, obj_id, name, edge_count, arc_count?}` | `edge_count * 6` float32: two endpoints per edge, x y z each; then `arc_count * 9` float32: start, end, mid-angle point per arc |
 | `bake_begin` | `{type, obj_ids, target, host?}` | - |
-| `bake_mesh` | `{type, obj_id, name, category, matrix, vert_count, face_count, loop_count, tri_count, accept_open, smooth_mesh?}` | positions (vert_count*3 f32) + face_sizes (face_count u32) + face_vertices (loop_count u32) + tri_vertices (tri_count*3 u32) + tri_faces (tri_count u32) |
+| `bake_mesh` | `{type, obj_id, name, category, matrix, vert_count, face_count, loop_count, tri_count, accept_open, smooth_mesh?, params?}` | positions (vert_count*3 f32) + face_sizes (face_count u32) + face_vertices (loop_count u32) + tri_vertices (tri_count*3 u32) + tri_faces (tri_count u32) |
 | `bake_end` | `{type}` | - |
 | `bake_remove` | `{type, obj_ids}` | - |
 
@@ -432,6 +432,23 @@ threshold separates the two. When the builder returns neither a Solid nor
 a Sheet (an open mesh already stitched), the polygons that are not exactly
 planar fall back to their triangles and the builder runs again; the retry
 is kept if it gives a Solid or a Sheet. Same path for the family bake.
+
+**Family dimension parameters.** `params` on `bake_mesh` (absent = none)
+is an array of `{name, kind, value}`: `name` is `BL_` followed by letters,
+`kind` one of `length`, `area`, `volume`, `value` a finite number >= 0 in
+SI units (m, m2, m3). Blender sends `BL_Length` and `BL_Width` (the larger
+and smaller of `obj.dimensions` X and Y), `BL_Height` (Z), `BL_Area` (total
+surface of the evaluated mesh), `BL_Volume` (only for a closed mesh, never
+overridden) and `BL_Thickness` (only when set by hand); every value but the
+volume can be set by hand from an edge or face selection, stored frozen on
+the object. Only the family bake uses them, and with Bake together only the
+host's. Revit writes them as type parameters, group Dimensions, converted
+to internal units; it deletes the `BL_` parameters that did not arrive and
+never touches parameters without the prefix. The re-bake reloads with
+`overwriteParameterValues = false`, so the `BL_` values are also written
+on the family's types in the project after the load. The values are
+informative: they do not drive the geometry. A malformed `params` is an
+`error` for that object.
 
 **Smooth mesh, per object.** `smooth_mesh` on `bake_mesh` (absent =
 false) asks the DirectShape bake for a mesh from the start: target
