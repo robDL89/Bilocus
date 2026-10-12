@@ -25,17 +25,21 @@
 #   only on lines and arcs; the NURBS case is a separate, later piece of
 #   work.
 #
-# Arcs sit ONLY on two planes passing through their chord, because a beam
-# picked up with Pick Lines orients its section on the curve's plane:
+# A beam picked up with Pick Lines orients its section on the curve's plane,
+# so the plane of every arc is chosen, in this order:
 # - "plan": contains the chord and the horizontal perpendicular to it.
 #   Tilted only as much as the chord's own slope, the same rule as lines.
+#   A helix sits here too: its osculating plane is the plan plane of the
+#   chord.
 # - "section": contains the chord and the vertical. For arcs in elevation.
-# An arc on a plane free in space follows the curve's osculating plane,
-# which where the curve is nearly straight and descending turns randomly:
-# measured in the field on 2026-09-16, a 114 m radius arc on a descending
-# segment had its plane tilted 40 degrees and the beam rolled with it. If
-# the vertices do not sit on either plane, a shorter arc or a line wins. An
-# arc on a free plane is a possible future third option (TODO).
+# - "free": the plane of the vertices themselves, for an arc really lying on
+#   a plane tilted sideways (a ring on an inclined plane, a curve on a roof
+#   pitch); the beam follows that plane. It is the LAST attempt on purpose:
+#   measured in the field on 2026-09-16, a nearly straight descending arc
+#   (114 m radius) got a plane tilted 40 degrees by numeric accident and the
+#   beam rolled with it. Such an arc already holds up on the plan plane and
+#   never gets here: the free plane is reached only when the vertices leave
+#   both other planes beyond the tolerance, i.e. when the tilt is real.
 
 import math
 
@@ -331,7 +335,8 @@ def _deviation_ok(points, i, j, arc, tolerance):
 
 def fit_arc(points, i, j, tolerance):
     """The midpoint at half sweep of the arc from i to j that holds up the
-    tolerance on one of the allowed planes, or None.
+    tolerance on the first plane that works (plan, section, free), or
+    None.
 
     It is the midpoint at half sweep, not the middle vertex, that travels
     on the wire: the vertex sits on the arc only within tolerance, the
@@ -339,7 +344,12 @@ def fit_arc(points, i, j, tolerance):
     define in Revit exactly the plane chosen here."""
     if j - i < 2:
         return None
-    for normal in arc_plane_normals(points[i], points[(i + j) // 2], points[j]):
+    start, middle, end = points[i], points[(i + j) // 2], points[j]
+    normals = arc_plane_normals(start, middle, end)
+    free = circle_through(start, middle, end)
+    if free is not None:
+        normals.append(free[2])
+    for normal in normals:
         arc = _arc_in_plane(points, i, j, normal)
         if arc is not None and _deviation_ok(points, i, j, arc, tolerance):
             return arc[6]

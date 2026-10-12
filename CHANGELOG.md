@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- New: **arcs on inclined planes** in Create Proxy, Arcs and lines mode.
+  An arc lying on a plane tilted sideways (a ring on an inclined plane, a
+  curve on a roof pitch) now becomes one arc on its own plane instead of a
+  run of short segments, and a beam picked on it follows that plane. Plan
+  and elevation arcs, and helices, are unchanged.
+
 ## 0.2.0 - 2026-10-10
 
 - New: **Revit 2026 and 2027.** One zip per Revit version, 2024 to 2027.

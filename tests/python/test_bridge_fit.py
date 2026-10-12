@@ -148,8 +148,8 @@ def test_a_full_circle_is_split_into_arcs_of_at_most_half_a_turn():
 
 
 def arc_plane_kind(arc):
-    """'plan', 'section' or None: which allowed plane the arc sits on, read
-    from its three points the way Revit does."""
+    """'plan', 'section' or 'free': which plane the arc sits on, read from
+    its three points the way Revit does."""
     start, end, mid = arc
     a = tuple(mid[i] - start[i] for i in range(3))
     b = tuple(end[i] - start[i] for i in range(3))
@@ -163,21 +163,30 @@ def arc_plane_kind(arc):
             return 'plan'
     if abs(n[2]) < 1e-6:
         return 'section'
-    return None
+    return 'free'
 
 
-# Measured in the field on 2026-09-16: an arc on a free plane in space
-# makes a beam picked up with Pick Lines roll. A plane tilted sideways is
-# not allowed: it becomes more segments, and the arcs that remain sit on
-# allowed planes.
-def test_an_arc_banked_sideways_is_not_kept_on_its_own_plane():
-    tilt = math.radians(30.0)
-    flat = circle_points(4.0, 0.0, 90.0, 30)
-    points = [(x, y * math.cos(tilt), y * math.sin(tilt) + 5.0) for x, y, _z in flat]
+def banked_points(degrees, tilt_degrees, count):
+    """An arc of radius 4 m on a plane tilted sideways, 5 m up: a ring on
+    an inclined plane, a curve drawn on a roof pitch."""
+    tilt = math.radians(tilt_degrees)
+    flat = circle_points(4.0, 0.0, degrees, count)
+    return [(x, y * math.cos(tilt), y * math.sin(tilt) + 5.0) for x, y, _z in flat]
+
+
+# An arc really lying on a plane tilted sideways stays one arc on that
+# plane: neither plan nor section holds it, and the alternative is a
+# polyline, i.e. one beam per segment.
+@pytest.mark.parametrize("tilt", [15.0, 30.0])
+def test_an_arc_banked_sideways_stays_one_arc_on_its_own_plane(tilt):
+    points = banked_points(180.0, tilt, 32)
     lines, arcs, _ = bridge_fit.fit_edges(polyline_edges(points), 0.001)
-    assert len(lines) + len(arcs) > 1
-    for arc in arcs:
-        assert arc_plane_kind(arc) is not None
+    assert lines == []
+    assert len(arcs) == 1
+    assert arc_plane_kind(arcs[0]) == 'free'
+    # the midpoint at half sweep sits on the original circle
+    _start, _end, mid = arcs[0]
+    assert abs(distance(mid, (0.0, 0.0, 5.0)) - 4.0) < 1e-9
 
 
 def test_a_plan_arc_at_height_stays_one_arc_on_the_plan_plane():
@@ -197,6 +206,9 @@ def test_an_elevation_arc_stays_one_arc_on_the_section_plane():
     assert arc_plane_kind(arcs[0]) == 'section'
 
 
+# Measured in the field on 2026-09-16: a nearly straight descending arc took
+# a plane tilted 40 degrees by numeric accident and the beam rolled. The free
+# plane is the LAST attempt, so this S must never reach it.
 def test_a_descending_s_curve_gives_only_admitted_planes():
     # the field case: an S in plan view that descends 2.3 m
     first = circle_points(6.0, 180.0, 90.0, 40, center=(6.0, 0.0, 0.0))
@@ -207,7 +219,7 @@ def test_a_descending_s_curve_gives_only_admitted_planes():
     lines, arcs, _ = bridge_fit.fit_edges(polyline_edges(points), 0.002)
     assert arcs
     for arc in arcs:
-        assert arc_plane_kind(arc) is not None
+        assert arc_plane_kind(arc) in ('plan', 'section')
 
 
 def test_a_horizontal_plan_curve_has_vertical_normals():
@@ -221,6 +233,18 @@ def test_plane_normals_for_a_vertical_chord_use_the_middle_point():
     assert len(normals) == 1
     assert abs(normals[0][2]) < 1e-12
     assert abs(normals[0][0]) < 1e-12
+
+
+# A helical handrail: its arcs already sit on the plan plane of their chord,
+# which for a helix is the osculating plane, so the beam does not roll. The
+# free plane must not take them over.
+def test_a_helix_keeps_its_arcs_on_the_plan_plane():
+    points = circle_points(1.5, 0.0, 360.0, 64, z_rise=3.0)
+    lines, arcs, _ = bridge_fit.fit_edges(polyline_edges(points), 0.001)
+    assert lines == []
+    assert len(arcs) == 11
+    for arc in arcs:
+        assert arc_plane_kind(arc) == 'plan'
 
 
 def test_a_helix_is_not_forced_into_one_arc():
