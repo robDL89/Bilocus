@@ -40,6 +40,15 @@ namespace Bilocus.Revit.Net.Tests
         }
 
         [Fact]
+        public void BuildName_WithSystem_PutsItAfterTheCategory()
+        {
+            Assert.Equal("Pipes (Hot water) - Standard [7]",
+                ElementNaming.BuildName("Pipes", "Standard", 7, "Hot water"));
+            Assert.Equal("Pipes - Standard [7]",
+                ElementNaming.BuildName("Pipes", "Standard", 7, " "));
+        }
+
+        [Fact]
         public void BuildName_EmptyStringsCountAsMissing()
         {
             Assert.Equal("Element [7]", ElementNaming.BuildName("", "", 7));

@@ -31,6 +31,15 @@ namespace Bilocus.Revit.Net.Tests
         }
 
         [Fact]
+        public void SystemMeshKey_SplitsSystemsAndLeavesTheRestAlone()
+        {
+            Assert.Equal("00ff|ACS", InstanceGeometry.SystemMeshKey("00ff", " ACS "));
+            Assert.NotEqual(InstanceGeometry.SystemMeshKey("00ff", "ACS"), InstanceGeometry.SystemMeshKey("00ff", "AFS"));
+            Assert.Equal("00ff", InstanceGeometry.SystemMeshKey("00ff", null));
+            Assert.Equal("00ff", InstanceGeometry.SystemMeshKey("00ff", " "));
+        }
+
+        [Fact]
         public void ComputeMeshKey_Is32LowercaseHexChars()
         {
             string key = InstanceGeometry.ComputeMeshKey(Triangle);

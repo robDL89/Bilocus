@@ -506,9 +506,9 @@ object in Blender deletes nothing in Revit.
 |---|---|---|
 | `hello_ack` | `{type, protocol_version, revit_version, doc_title}` | - |
 | `revit_batch_begin` | `{type, count}` | - |
-| `revit_geometry` | `{type, element_id, name, category, type_name, vert_count, tri_count, origin, color}` | positions (vert_count*3 f32) + normals (vert_count*3 f32) + indices (tri_count*3 u32) |
+| `revit_geometry` | `{type, element_id, name, category, type_name, vert_count, tri_count, origin, color, [link_id, link_name]}` | positions (vert_count*3 f32) + normals (vert_count*3 f32) + indices (tri_count*3 u32) |
 | `revit_mesh` | `{type, mesh_key, vert_count, tri_count}` | positions + normals + indices, same as `revit_geometry` |
-| `revit_instance` | `{type, element_id, name, category, type_name, mesh_key, matrix, color}` | - |
+| `revit_instance` | `{type, element_id, name, category, type_name, mesh_key, matrix, color, [link_id, link_name]}` | - |
 | `revit_batch_end` | `{type}` | - |
 | `proxy_result` | `{type, obj_id, name, ok, requested, created, arcs, replaced, skipped, failed, planes_deleted, planes_kept, message}` | - |
 | `bake_result` | `{type, action, ok, requested, created, replaced, recreated, removed, failed, missing, as_mesh, faces_planar, faces_triangulated, target, switched, not_moved, message}` | - |
@@ -691,6 +691,22 @@ section 4.4.
 The object rules for `revit_geometry` above (update in place, search across
 `bpy.data.objects`, the reset toggle, the collection not cleared) apply to
 instance objects too, with `matrix` in place of `origin` for placement.
+
+#### Linked models (`link_id`, `link_name`)
+
+A selected `RevitLinkInstance` sends every model-category element of its
+document, tessellated with the link's total transform, through the same
+`revit_geometry` / `revit_instance` path. Those two headers then carry
+`link_id` (the link instance's id) and `link_name` (the linked document's
+title); host elements omit both. Elements picked inside a link with Tab are
+not reachable: `Selection.GetElementIds` does not return them.
+
+On the Blender side the key becomes `"<link_id>:<element_id>"`, since ids of
+different documents collide, and the objects go into
+`FromRevit/LinkModel - <link_name>`. A link is context, not something to edit
+and send back: its sub-collection is emptied on the first linked object of
+each batch and rebuilt, with no per-element search (quadratic on a whole
+model). Edits to those objects are lost on the next pull of the same link.
 `revit_mesh` and `revit_instance` arriving without a `revit_batch_begin`
 open an implicit batch, like `revit_geometry`.
 
