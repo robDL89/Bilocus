@@ -188,7 +188,8 @@ namespace Bilocus.Revit.Net
                         break;
 
                     case "preview_style":
-                        _store.SetStyle(RequireColor(root, "face"), RequireColor(root, "edge"));
+                        _store.SetStyle(RequireColor(root, "face"), RequireColor(root, "edge"),
+                            OptionalUnit(root, "face_alpha", 1f));
                         break;
 
                     case "proxy_edges":
@@ -921,6 +922,23 @@ namespace Bilocus.Revit.Net
                     "field {0} missing or not an array of {1} numbers", name, count));
             }
             return values;
+        }
+
+        // A number in 0..1, the fallback if the field is missing (an older
+        // Blender add-in). Present but out of range or not a number is an
+        // error, like a color component.
+        private static float OptionalUnit(JsonElement root, string name, float fallback)
+        {
+            JsonElement field;
+            if (!root.TryGetProperty(name, out field)) { return fallback; }
+
+            double value;
+            if (field.ValueKind != JsonValueKind.Number || !field.TryGetDouble(out value)
+                || value < 0.0 || value > 1.0)
+            {
+                throw new ContentException("field " + name + " must be a number between 0 and 1");
+            }
+            return (float)value;
         }
 
         // RGB in 0..1. Out of range is a defect of the sender: clamping it

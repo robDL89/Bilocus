@@ -42,7 +42,9 @@ namespace Bilocus.Revit.Preview
         public string GetApplicationId() { return ""; }
         public string GetSourceId() { return ""; }
         public bool UsesHandles() { return false; }
-        public bool UseInTransparentPass(View view) { return false; }
+        // Only a translucent preview takes part in the transparent pass: an
+        // opaque one is drawn exactly as before, in the opaque pass alone.
+        public bool UseInTransparentPass(View view) { return _store.FaceAlpha < 1f; }
         public bool CanExecute(View view) { return view is View3D; }
 
         // It is not just Zoom to Fit. RevitAPI.xml, on this method, warns:
@@ -80,6 +82,12 @@ namespace Bilocus.Revit.Preview
 
                 List<StoredObject> objects = _store.Objects;
 
+                // Translucent faces go in the transparent pass, edges always
+                // in the opaque one: the outline stays readable.
+                bool transparentPass = DrawContext.IsTransparentPass();
+                bool drawFaces = (_store.FaceAlpha < 1f) == transparentPass;
+                bool drawEdges = !transparentPass;
+
                 if (_store.Revision != _prunedRevision)
                 {
                     PruneCache(objects);
@@ -95,7 +103,7 @@ namespace Bilocus.Revit.Preview
                     foreach (GpuChunk chunk in chunks)
                     {
                         if (DrawContext.IsInterrupted()) { return; }
-                        chunk.Draw(displayStyle);
+                        chunk.Draw(displayStyle, drawFaces, drawEdges);
                     }
                 }
                 // Precaution: the DrawContext is shared across the registered
@@ -131,8 +139,8 @@ namespace Bilocus.Revit.Preview
                 if (allValid) { return chunks; }
             }
 
-            ColorWithTransparency faceColor = ToRevitColor(_store.FaceColor);
-            ColorWithTransparency edgeColor = ToRevitColor(_store.EdgeColor);
+            ColorWithTransparency faceColor = ToRevitColor(_store.FaceColor, _store.FaceAlpha);
+            ColorWithTransparency edgeColor = ToRevitColor(_store.EdgeColor, 1f);
 
             chunks = new List<GpuChunk>();
             foreach (MeshChunk source in item.Chunks)
@@ -162,14 +170,15 @@ namespace Bilocus.Revit.Preview
             return transform;
         }
 
-        // RGB in 0..1 to an opaque Revit color. The preview is never drawn
-        // in the transparent pass (UseInTransparentPass is false).
-        private static ColorWithTransparency ToRevitColor(float[] rgb)
+        // RGB and opacity in 0..1 to a Revit color, whose fourth component
+        // is TRANSPARENCY (0 opaque, 255 invisible), the opposite of alpha.
+        private static ColorWithTransparency ToRevitColor(float[] rgb, float alpha)
         {
             uint r = (uint)Math.Max(0, Math.Min(255, (int)Math.Round(rgb[0] * 255)));
             uint g = (uint)Math.Max(0, Math.Min(255, (int)Math.Round(rgb[1] * 255)));
             uint b = (uint)Math.Max(0, Math.Min(255, (int)Math.Round(rgb[2] * 255)));
-            return new ColorWithTransparency(r, g, b, 0);
+            uint t = (uint)Math.Max(0, Math.Min(255, (int)Math.Round((1f - alpha) * 255)));
+            return new ColorWithTransparency(r, g, b, t);
         }
 
         public void DiscardCache()
