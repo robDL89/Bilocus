@@ -38,7 +38,8 @@
   any angle is not stretched, and on walls and roofs the texture runs
   level. Floors keep world X and Y. Exported to Unreal it is UV channel 0,
   a clean source for Generate Lightmap UVs. Curved surfaces get small
-  breaks between faces: unwrap those by hand if they show.
+  breaks between faces: unwrap those by hand if they show. On by default;
+  turn off **Metric UVs** in the pull section to unwrap your own way.
 
 ## 0.2.0 - 2026-10-10
 

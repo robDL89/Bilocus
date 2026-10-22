@@ -223,6 +223,18 @@ def main():
     for label, obj in (("flat", pulled(90)), ("instance", pulled(91)), ("link", linked)):
         check_metric_uv(obj.data, label)
 
+    # 10. with the scene checkbox off, the pull adds no UVs
+    check(getattr(scene, imp.UVS_PROPERTY) is True, "Metric UVs on by default")
+    setattr(scene, imp.UVS_PROPERTY, False)
+    batch(2)
+    send_flat(93, (0.0, 90.0, 0.0))
+    send_mesh("K10")
+    send_instance(94, "K10", matrix(ty=95.0))
+    end()
+    check(len(pulled(93).data.uv_layers) == 0 and len(pulled(94).data.uv_layers) == 0,
+          "checkbox off: flat and instance meshes arrive without UVs")
+    setattr(scene, imp.UVS_PROPERTY, True)
+
     imp.unregister_properties()
 
 
