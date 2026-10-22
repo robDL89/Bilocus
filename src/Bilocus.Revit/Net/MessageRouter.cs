@@ -577,9 +577,13 @@ namespace Bilocus.Revit.Net
         // written, even when zero: the Blender side requires it, an absent
         // origin is a content error. Omitting it when null would mean two
         // formats.
+        //
+        // linkName non-null marks an element read from a linked model:
+        // link_id and link_name are written, otherwise both are absent.
         public static string BuildGeometryHeader(
             long elementId, string name, string category, string typeName,
-            int vertCount, int triCount, float[] origin, float[] color)
+            int vertCount, int triCount, float[] origin, float[] color,
+            long linkId = 0, string linkName = null)
         {
             if (name == null) throw new ArgumentNullException("name");
             if (origin == null) throw new ArgumentNullException("origin");
@@ -611,6 +615,7 @@ namespace Bilocus.Revit.Net
                     writer.WriteStartArray("color");
                     for (int i = 0; i < color.Length; i++) { writer.WriteNumberValue(color[i]); }
                     writer.WriteEndArray();
+                    WriteLink(writer, linkId, linkName);
                     writer.WriteEndObject();
                 }
                 return Encoding.UTF8.GetString(buffer.ToArray());
@@ -647,7 +652,8 @@ namespace Bilocus.Revit.Net
         // category and type_name: never a JSON null.
         public static string BuildInstanceHeader(
             long elementId, string name, string category, string typeName,
-            string meshKey, float[] matrix, float[] color)
+            string meshKey, float[] matrix, float[] color,
+            long linkId = 0, string linkName = null)
         {
             if (name == null) throw new ArgumentNullException("name");
             CheckMeshKey(meshKey);
@@ -679,10 +685,18 @@ namespace Bilocus.Revit.Net
                     writer.WriteStartArray("color");
                     for (int i = 0; i < color.Length; i++) { writer.WriteNumberValue(color[i]); }
                     writer.WriteEndArray();
+                    WriteLink(writer, linkId, linkName);
                     writer.WriteEndObject();
                 }
                 return Encoding.UTF8.GetString(buffer.ToArray());
             }
+        }
+
+        private static void WriteLink(Utf8JsonWriter writer, long linkId, string linkName)
+        {
+            if (linkName == null) { return; }
+            writer.WriteNumber("link_id", linkId);
+            writer.WriteString("link_name", linkName);
         }
 
         private static void CheckMeshKey(string meshKey)

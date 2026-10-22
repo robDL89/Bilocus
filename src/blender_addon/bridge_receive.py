@@ -223,6 +223,20 @@ def _read_origin(header):
     return tuple(result)
 
 
+def _read_link(header, element_id):
+    """(key, link name) for an element of a linked model, (element_id, None)
+    for a host element.
+
+    The key is "<link_id>:<element_id>": ids of different documents
+    collide, and without the prefix a host wall would update the linked
+    object with its same id."""
+    if header.get("link_id") is None:
+        return element_id, None
+    link_id = element_id_key(header.get("link_id"))
+    name = _read_text(header, "link_name") or link_id
+    return "{}:{}".format(link_id, element_id), name
+
+
 def read_geometry_header(header):
     """Extracts the fields of revit_geometry, already validated and
     normalized."""
@@ -232,8 +246,10 @@ def read_geometry_header(header):
         # bpy.data.objects.new("") produces an object with an unusable name:
         # better an ugly but findable name in the outliner
         name = "Revit {}".format(element_id)
+    key, link = _read_link(header, element_id)
     return {
-        "element_id": element_id,
+        "element_id": key,
+        "link": link,
         "name": name,
         "category": _read_text(header, "category"),
         "type_name": _read_text(header, "type_name"),
@@ -318,8 +334,10 @@ def read_instance_header(header):
     name = _read_text(header, "name")
     if not name:
         name = "Revit {}".format(element_id)
+    key, link = _read_link(header, element_id)
     return {
-        "element_id": element_id,
+        "element_id": key,
+        "link": link,
         "name": name,
         "category": _read_text(header, "category"),
         "type_name": _read_text(header, "type_name"),
@@ -390,6 +408,32 @@ def read_batch_count(header):
     return value
 
 
+# --- draining the incoming queue -----------------------------------------
+#
+# The drain runs on Blender's main thread: while it works, nothing redraws
+# and no input is read. A pull of a large linked model queues tens of
+# thousands of messages, and handling them all in one tick froze Blender
+# until the last one. With a budget the tick stops, Blender redraws (the
+# panel shows the progress) and the next tick resumes where it left off.
+
+# 50 ms of work per tick: the UI stays usable, the pull barely slows down
+DRAIN_BUDGET_SECONDS = 0.05
+
+
+def drain(queue, handle, clock, budget):
+    """Calls handle(header, payload) on queued messages until the queue is
+    empty or budget seconds have passed. At least one message is handled
+    per call, so a slow one cannot stall the queue. True if the queue was
+    left empty."""
+    deadline = clock() + budget
+    while not queue.empty():
+        header, payload = queue.get()
+        handle(header, payload)
+        if clock() >= deadline:
+            return queue.empty()
+    return True
+
+
 # --- batch bookkeeping ---------------------------------------------------
 #
 # A batch is the sequence revit_batch_begin / N revit_geometry /
@@ -443,6 +487,9 @@ class BatchState(object):
         # only when an instance uses them (bridge_import), so a batch that
         # dies halfway leaves no orphan meshes in the file.
         self.meshes = {}
+        # Link sub-collections already emptied in this batch, by name, each
+        # with the meshes built for it: {mesh_key: mesh name} (bridge_import).
+        self.links = {}
         self.last_activity = 0.0
 
     def begin(self, count, now):
@@ -478,6 +525,17 @@ class BatchState(object):
         self._ensure_open(now)
         self.meshes[key] = (positions, indices)
         self.last_activity = now
+
+    def link_meshes(self, name, now):
+        """(meshes, first) for a link sub-collection: the {mesh_key: mesh
+        name} built for it in this batch, and whether this is its first
+        object, i.e. whether the caller must empty it. Opens the batch
+        first, so an implicit one cannot forget a link already emptied."""
+        self._ensure_open(now)
+        first = name not in self.links
+        if first:
+            self.links[name] = {}
+        return self.links[name], first
 
     def record_failure(self, now):
         self._ensure_open(now)

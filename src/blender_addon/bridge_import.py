@@ -24,6 +24,9 @@ from bridge_protocol import BridgeMessageError
 # ASCII mandatory, like for ToRevit: the name ends up in logs and in the panel.
 COLLECTION_NAME = "FromRevit"
 
+# Sub-collection of FromRevit holding the objects of one linked model.
+LINK_COLLECTION_PREFIX = "LinkModel - "
+
 # Custom properties linking the Blender object to the Revit element. The
 # first one is also the key used to find the object again on the next pull:
 # it is a string, for the reason written in receive.element_id_key.
@@ -415,6 +418,66 @@ def import_instance(fields, scene=None):
     return not exists
 
 
+def _link_collection(link, now, scene):
+    """(collection, meshes) for a linked model: its sub-collection under
+    FromRevit, EMPTIED on the first object of the batch, and the {mesh_key:
+    mesh name} already built for it in this batch.
+
+    A link is context, re-pulled whole and never updated in place: the
+    find_object scan per element is fine on a selection but quadratic on a
+    whole model. What the user did to those objects is lost on the next
+    pull of the same link, by design."""
+    name = LINK_COLLECTION_PREFIX + link
+    meshes, first = LAST_PULL.link_meshes(name, now)
+
+    collection = bpy.data.collections.get(name)
+    if collection is None:
+        collection = bpy.data.collections.new(name)
+    # Same check as ensure_collection: the user may have moved it elsewhere
+    # in the scene, and linking it twice raises RuntimeError.
+    if collection not in scene.collection.children_recursive:
+        ensure_collection(scene).children.link(collection)
+
+    if first:
+        for obj in list(collection.objects):
+            data = obj.data
+            bpy.data.objects.remove(obj)
+            if isinstance(data, bpy.types.Mesh):
+                _remove_if_orphan(data)
+    return collection, meshes
+
+
+def import_link(fields, positions, indices, now, scene=None):
+    """Creates the object for an element of a linked model, revit_geometry
+    (positions and indices) or revit_instance (mesh_key and matrix, the
+    payloads None)."""
+    if scene is None:
+        scene = bpy.context.scene
+
+    collection, meshes = _link_collection(fields["link"], now, scene)
+
+    mesh_key = fields.get("mesh_key")
+    if mesh_key is None:
+        mesh = _build_mesh(fields["name"], positions, indices)
+    else:
+        mesh = bpy.data.meshes.get(meshes.get(mesh_key, ""))
+        if mesh is None:
+            stored = LAST_PULL.meshes.get(mesh_key)
+            if stored is None:
+                raise BridgeMessageError(
+                    "mesh_key {} did not arrive in this batch".format(mesh_key))
+            mesh = _build_mesh(fields["type_name"] or fields["name"], stored[0], stored[1])
+            meshes[mesh_key] = mesh.name
+
+    obj = bpy.data.objects.new(fields["name"], mesh)
+    collection.objects.link(obj)
+    if mesh_key is None:
+        obj.location = fields["origin"]
+    else:
+        obj.matrix_world = Matrix(receive.matrix_rows(fields["matrix"]))
+    _write_properties(obj, fields)
+
+
 def handle_geometry(header, payload, now, scene=None):
     """A complete revit_geometry message, from the header to the objects.
 
@@ -424,7 +487,11 @@ def handle_geometry(header, payload, now, scene=None):
         fields = receive.read_geometry_header(header)
         positions, normals, indices = receive.unpack_mesh_payload(
             payload, fields["vert_count"], fields["tri_count"])
-        created, overwritten = import_geometry(fields, positions, indices, scene)
+        if fields["link"] is not None:
+            import_link(fields, positions, indices, now, scene)
+            created, overwritten = True, False
+        else:
+            created, overwritten = import_geometry(fields, positions, indices, scene)
     except Exception as error:
         # An element that blows up must not stop the others, exactly like
         # on the Revit side in SendSelectionCommand: it gets counted, named
@@ -466,7 +533,11 @@ def handle_instance(header, payload, now, scene=None):
     timer. The payload is empty by protocol and ignored."""
     try:
         fields = receive.read_instance_header(header)
-        created = import_instance(fields, scene)
+        if fields["link"] is not None:
+            import_link(fields, None, None, now, scene)
+            created = True
+        else:
+            created = import_instance(fields, scene)
     except Exception as error:
         LAST_PULL.record_failure(now)
         return "element not imported: {}: {}".format(

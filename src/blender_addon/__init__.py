@@ -225,25 +225,47 @@ def _handle_message(header, payload, now):
         _tag_redraw()
 
 
+def _handle_safely(header, payload):
+    try:
+        _handle_message(header, payload, time.time())
+    except Exception as error:
+        # Timer safety net. An exception that bubbles up to here makes
+        # Blender disable the timer, i.e. silently switches off the
+        # ENTIRE queue drain: from that point the addon stays
+        # connected but deaf, and does not tell anyone. Better to lose
+        # a message and print it to the console.
+        _log("message discarded: {}: {}".format(type(error).__name__, error))
+
+
+# perf_counter when the previous tick stopped with messages still queued
+_DRAIN_PAUSED_AT = None
+
+
 def _drain_incoming():
     # runs on the main thread: bpy is usable here
-    while not client.CLIENT.incoming.empty():
-        header, payload = client.CLIENT.incoming.get()
-        try:
-            _handle_message(header, payload, time.time())
-        except Exception as error:
-            # Timer safety net. An exception that bubbles up to here makes
-            # Blender disable the timer, i.e. silently switches off the
-            # ENTIRE queue drain: from that point the addon stays
-            # connected but deaf, and does not tell anyone. Better to lose
-            # a message and print it to the console.
-            _log("message discarded: {}: {}".format(type(error).__name__, error))
+    global _DRAIN_PAUSED_AT
+    budget = receive.DRAIN_BUDGET_SECONDS
+    if _DRAIN_PAUSED_AT is not None:
+        # What Blender did between two ticks (depsgraph, redraw) grows with
+        # every object the pull adds. Working at least as long keeps the
+        # pull at half speed at worst, instead of drowning in redraws.
+        budget = max(budget, time.perf_counter() - _DRAIN_PAUSED_AT)
+    if not receive.drain(client.CLIENT.incoming, _handle_safely,
+                         time.perf_counter, budget):
+        # budget spent with messages left: let Blender redraw (the panel
+        # shows the pull progress) and come back right away
+        _tag_redraw()
+        _DRAIN_PAUSED_AT = time.perf_counter()
+        return 0.0
+    _DRAIN_PAUSED_AT = None
 
     # A batch can stay open: Revit can fail mid-send and never send
     # revit_batch_end, or the connection can drop in the middle. The check
     # is HERE and not inside a dispatch branch precisely because in those
     # cases no message arrives to trigger it. Objects already imported
-    # stay in the scene: only the bookkeeping is closed.
+    # stay in the scene: only the bookkeeping is closed. Only with the
+    # queue empty: a revit_batch_end still queued is not an interruption,
+    # even if the connection has dropped since.
     reason = imp.check_open_batch(client.CLIENT.running, time.time())
     if reason is not None:
         _log("pull interrupted: {}".format(imp.LAST_PULL.message))
