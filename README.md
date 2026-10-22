@@ -193,6 +193,10 @@ the connection drops, the panel says so.
   *handshake ok*) and can freeze on Sync: press **Disconnect** in the first
   one before connecting another.
 - Sync refuses to run while an object is in Edit Mode: press Tab first.
+- In Arcs and lines mode a helix becomes a series of flat arcs: a beam
+  picked on them has a small step in rotation at every joint (about 10
+  degrees with a 1 mm deviation, 5 with 0.1 mm). For helical elements such
+  as stair stringers, model them in Blender and use **Bake**.
 - In Blender, `Shift+D` also copies the Bilocus identifier of an object.
   Bilocus detects the duplicate at the next Sync and gives it a new one. Keep an eye on the `ToRevit` collection because that's
   what will be synced.
