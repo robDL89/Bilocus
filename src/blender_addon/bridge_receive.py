@@ -408,6 +408,32 @@ def read_batch_count(header):
     return value
 
 
+# --- draining the incoming queue -----------------------------------------
+#
+# The drain runs on Blender's main thread: while it works, nothing redraws
+# and no input is read. A pull of a large linked model queues tens of
+# thousands of messages, and handling them all in one tick froze Blender
+# until the last one. With a budget the tick stops, Blender redraws (the
+# panel shows the progress) and the next tick resumes where it left off.
+
+# 50 ms of work per tick: the UI stays usable, the pull barely slows down
+DRAIN_BUDGET_SECONDS = 0.05
+
+
+def drain(queue, handle, clock, budget):
+    """Calls handle(header, payload) on queued messages until the queue is
+    empty or budget seconds have passed. At least one message is handled
+    per call, so a slow one cannot stall the queue. True if the queue was
+    left empty."""
+    deadline = clock() + budget
+    while not queue.empty():
+        header, payload = queue.get()
+        handle(header, payload)
+        if clock() >= deadline:
+            return queue.empty()
+    return True
+
+
 # --- batch bookkeeping ---------------------------------------------------
 #
 # A batch is the sequence revit_batch_begin / N revit_geometry /
