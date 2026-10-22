@@ -111,6 +111,7 @@
          four files, this project stops compiling. -->
     <Compile Include="..\..\src\Bilocus.Revit\Bake\BakeCategory.cs" Link="Bake\BakeCategory.cs" />
     <Compile Include="..\..\src\Bilocus.Revit\Bake\BakeMeshRequest.cs" Link="Bake\BakeMeshRequest.cs" />
+    <Compile Include="..\..\src\Bilocus.Revit\Bake\BakeParameter.cs" Link="Bake\BakeParameter.cs" />
     <Compile Include="..\..\src\Bilocus.Revit\Bake\BakeBatch.cs" Link="Bake\BakeBatch.cs" />
     <Compile Include="..\..\src\Bilocus.Revit\Bake\BakeResult.cs" Link="Bake\BakeResult.cs" />
 

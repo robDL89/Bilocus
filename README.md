@@ -60,6 +60,11 @@ endorsed by Autodesk or the Blender Foundation.
   replaces the previous version; **Remove Bake** deletes what Bilocus
   created. A DirectShape can also arrive as a smooth mesh instead of a
   solid: see [Smooth meshes or true solids](#smooth-meshes-or-true-solids).
+  A family also carries `BL_` type parameters (length, width, height, area,
+  volume, and thickness when set): rough values from the object's extent,
+  each one but the volume can be set from an edge or face selection in the
+  panel. They are informative, not linked to the geometry, and rewritten at
+  every bake.
 
   ![A geometry nodes pavilion synced, then baked together into one family](docs/media/geomnodes-sync-blender.gif)
 

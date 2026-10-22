@@ -599,6 +599,12 @@ def test_mesh_header_has_the_fields_of_the_contract():
     }
 
 
+def test_mesh_header_carries_params_only_when_given():
+    assert "params" not in mesh_header()
+    params = [{"name": "BL_Length", "kind": "length", "value": 2.0}]
+    assert mesh_header(params=params)["params"] == params
+
+
 def test_mesh_header_writes_accept_open_when_true():
     assert mesh_header(accept_open=True)["accept_open"] is True
 

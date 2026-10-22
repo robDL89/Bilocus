@@ -22,6 +22,12 @@
   the Blender panel makes the preview faces translucent in Revit, to see
   the model through them. The edges stay opaque. Applied immediately, no
   Sync needed; with an older Blender add-in the preview stays opaque.
+- New: **family dimension parameters.** A family baked from Blender carries
+  `BL_Length`, `BL_Width`, `BL_Height`, `BL_Area` and `BL_Volume` (closed
+  meshes only) as type parameters, plus `BL_Thickness` when set. Values come
+  from the object's extent and can be set by hand from an edge or face
+  selection in the panel, except the volume. Informative only: they do not
+  drive the geometry and are rewritten at every bake.
 
 ## 0.2.0 - 2026-10-10
 

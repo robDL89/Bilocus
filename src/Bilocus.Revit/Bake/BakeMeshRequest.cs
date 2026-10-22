@@ -2,6 +2,7 @@
 // Copyright (c) 2026 Roberto Dolfini
 
 using System;
+using System.Collections.Generic;
 using Bilocus.Geometry;
 using Bilocus.Revit.Proxy;
 
@@ -56,8 +57,13 @@ namespace Bilocus.Revit.Bake
         // solid. False if the message does not carry it.
         public bool SmoothMesh { get; private set; }
 
+        // The BL_ family parameters. Only the family bake writes them, and
+        // with Bake together only the host's: the members are often LODs of
+        // the same shape. Never null, empty if the message has none.
+        public IList<BakeParameter> Parameters { get; private set; }
+
         private BakeMeshRequest(string objectId, string name, string category, float[] matrix,
-            BakeMeshPayload mesh, bool acceptOpen, bool smoothMesh)
+            BakeMeshPayload mesh, bool acceptOpen, bool smoothMesh, IList<BakeParameter> parameters)
         {
             ObjectId = objectId;
             Name = name;
@@ -66,6 +72,7 @@ namespace Bilocus.Revit.Bake
             Mesh = mesh;
             AcceptOpen = acceptOpen;
             SmoothMesh = smoothMesh;
+            Parameters = parameters;
         }
 
         // The Phase B Parse: AcceptOpen false.
@@ -88,7 +95,7 @@ namespace Bilocus.Revit.Bake
         // be reported.
         public static BakeMeshRequest Parse(string objectId, string name, string category, float[] matrix,
             int vertCount, int faceCount, int loopCount, int triCount, byte[] payload, bool acceptOpen,
-            bool smoothMesh = false)
+            bool smoothMesh = false, IList<BakeParameter> parameters = null)
         {
             // Without identity there is neither replacement nor removal:
             // better to reject the message than to leave a DirectShape in the
@@ -133,7 +140,8 @@ namespace Bilocus.Revit.Bake
             // The request stays pending until it is drained: a copy, so a
             // caller that reuses its array does not move the object.
             return new BakeMeshRequest(
-                normalizedId, label, category, (float[])matrix.Clone(), mesh, acceptOpen, smoothMesh);
+                normalizedId, label, category, (float[])matrix.Clone(), mesh, acceptOpen, smoothMesh,
+                new List<BakeParameter>(parameters ?? new BakeParameter[0]));
         }
     }
 }
