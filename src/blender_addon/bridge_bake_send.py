@@ -454,6 +454,11 @@ def bake_selected(context=None, target="directshape", together=False):
         notes.append("NOT sent: {}".format("; ".join(failed[:3])))
     if warned:
         notes.append("heavy: {}".format("; ".join(warned[:3])))
+    if family:
+        changed = [obj.name for obj, _obj_id in announced if changed_overrides(obj)]
+        if changed:
+            notes.append("BL_ values set by hand before the object changed: {}".format(
+                "; ".join(changed[:3])))
 
     if sent == 0:
         # bake_end went out anyway: Revit will reply with ok false and all
@@ -475,8 +480,35 @@ def bake_selected(context=None, target="directshape", together=False):
 
 # Object custom properties holding the BL_ values set by hand, in meters
 # and square meters: bilocus_param_length, ... Frozen: not recomputed when
-# the mesh changes.
+# the mesh changes. Next to each, bilocus_param_length_dims holds the
+# object's dimensions when it was set, so a value left behind by a reshape
+# can be flagged. Shift+D copies both: the copy starts with the same shape,
+# so its values are right until it is edited, like the original's.
 OVERRIDE_PREFIX = "bilocus_param_"
+DIMS_SUFFIX = "_dims"
+
+
+def set_override(obj, key, value):
+    obj[OVERRIDE_PREFIX + key] = value
+    obj[OVERRIDE_PREFIX + key + DIMS_SUFFIX] = list(obj.dimensions)
+
+
+def clear_override(obj, key):
+    for name in (OVERRIDE_PREFIX + key, OVERRIDE_PREFIX + key + DIMS_SUFFIX):
+        if name in obj:
+            del obj[name]
+
+
+def changed_overrides(obj):
+    """The keys of the values set by hand while the object had other
+    dimensions than now."""
+    result = []
+    for key in overrides_of(obj):
+        recorded = obj.get(OVERRIDE_PREFIX + key + DIMS_SUFFIX)
+        recorded = None if recorded is None else tuple(recorded)
+        if params_logic.changed_since(tuple(obj.dimensions), recorded):
+            result.append(key)
+    return result
 
 
 def measure(obj, depsgraph):

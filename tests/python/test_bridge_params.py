@@ -71,3 +71,25 @@ def test_rows_say_where_each_value_comes_from():
 def test_invalid_values_are_rejected(bad):
     with pytest.raises(BridgeFramingError):
         bridge_params.build_params((1, 2, 3), 1.0, None, {"length": bad})
+
+
+# --- a value set by hand on an object that changed since -------------------
+
+def test_changed_since_false_on_the_same_dimensions():
+    assert not bridge_params.changed_since((2.0, 1.0, 0.5), (2.0, 1.0, 0.5))
+
+
+def test_changed_since_ignores_float_noise():
+    # obj.dimensions is float32 inside Blender: a re-read can wobble
+    assert not bridge_params.changed_since((2.0000001, 1.0, 0.5), (2.0, 1.0, 0.5))
+
+
+def test_changed_since_true_when_one_side_changes():
+    assert bridge_params.changed_since((2.0, 1.2, 0.5), (2.0, 1.0, 0.5))
+    assert bridge_params.changed_since((2.001, 1.0, 0.5), (2.0, 1.0, 0.5))
+
+
+def test_changed_since_false_without_a_record():
+    # values set before the dimensions were recorded: unknown, not flagged
+    assert not bridge_params.changed_since((2.0, 1.0, 0.5), None)
+    assert not bridge_params.changed_since((2.0, 1.0, 0.5), (2.0, 1.0))

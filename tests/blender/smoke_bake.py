@@ -888,6 +888,64 @@ def test_family(server, collection, sample, cube, addon_module):
         bpy.data.meshes.remove(data)
 
 
+def test_manual_values(collection):
+    say("--- 4. BL_ values set by hand")
+    import bmesh
+    verts = [(x, y, z) for z in (0.0, 0.5) for y in (0.0, 1.0) for x in (0.0, 2.0)]
+    faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
+    box = new_mesh_object("BakeM_box", verts, [], faces, collection, (0.0, 40.0, 0.0))
+    select_only([box], active=box)
+
+    # Reshaped and measured without leaving Edit Mode: the dimensions
+    # recorded must be the new ones, or leaving would raise a false flag
+    bpy.ops.object.mode_set(mode='EDIT')
+    bm = bmesh.from_edit_mesh(box.data)
+    for vert in bm.verts:
+        vert.select = False
+        if vert.co.x > 1.0:
+            vert.co.x = 3.0
+    for edge in bm.edges:
+        edge.select = False
+    long_edge = next(e for e in bm.edges
+                     if {tuple(v.co) for v in e.verts} == {(0.0, 0.0, 0.0), (3.0, 0.0, 0.0)})
+    long_edge.select = True
+    bmesh.update_edit_mesh(box.data)
+    bpy.context.view_layer.update()
+    result = bpy.ops.bilocus.set_bake_param(key="length")
+    bpy.ops.object.mode_set(mode='OBJECT')
+    bpy.context.view_layer.update()
+    check(result == {'FINISHED'} and abs(bake_send.overrides_of(box)["length"] - 3.0) < 1e-6,
+          "length set from the selected edge: {}".format(bake_send.overrides_of(box)))
+    check(bake_send.changed_overrides(box) == [],
+          "no flag after leaving Edit Mode (dimensions {})".format(tuple(box.dimensions)))
+
+    copy = box.copy()
+    copy.data = box.data.copy()
+    collection.objects.link(copy)
+    bpy.context.view_layer.update()
+    check(bake_send.overrides_of(copy) == bake_send.overrides_of(box)
+          and bake_send.changed_overrides(copy) == [],
+          "a Shift+D copy keeps the value and is not flagged: same shape")
+
+    copy.scale.x = 1.5
+    bpy.context.view_layer.update()
+    check(bake_send.changed_overrides(copy) == ["length"] and bake_send.changed_overrides(box) == [],
+          "the reshaped copy is flagged, the original is not")
+    select_only([copy], active=copy)
+    labels = [line[2] for line in draw_panel() if line[1] == "label"]
+    check("BL_Length: 3.000 m (set, object changed) [ERROR]" in labels,
+          "panel: flagged value with the warning icon")
+
+    bpy.ops.bilocus.clear_bake_param(key="length")
+    check(not any(name.startswith(bake_send.OVERRIDE_PREFIX) for name in copy.keys()),
+          "the X removes the value and its recorded dimensions")
+
+    for obj in (copy, box):
+        data = obj.data
+        bpy.data.objects.remove(obj)
+        bpy.data.meshes.remove(data)
+
+
 def main():
     say("Blender {} - modules from {}".format(bpy.app.version_string, SRC))
     scene = bpy.context.scene
@@ -897,6 +955,7 @@ def main():
     say("addon {} from {}".format("installed" if installed else "from src",
                                 os.path.dirname(os.path.abspath(module.__file__))))
     test_end_to_end(scene, collection, sample, module)
+    test_manual_values(collection)
     disable_addon(module, installed)
 
 

@@ -27,7 +27,11 @@
   meshes only) as type parameters, plus `BL_Thickness` when set. Values come
   from the object's extent and can be set by hand from an edge or face
   selection in the panel, except the volume. Informative only: they do not
-  drive the geometry and are rewritten at every bake.
+  drive the geometry and are rewritten at every bake. A value set by hand
+  is flagged in the panel, and in the bake message, once the object's
+  dimensions change: it is still sent until you set it again or clear it.
+  A `BL_` parameter you use in a formula in the family editor is kept even
+  when it is no longer sent, and one you give a formula is not overwritten.
 
 ## 0.2.0 - 2026-10-10
 

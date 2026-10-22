@@ -69,3 +69,15 @@ def build_params(dimensions, area, volume, overrides):
             raise BridgeFramingError("{}: {} is not a valid measure".format(name, value))
         result.append({"name": name, "kind": kind, "value": round(value, 6)})
     return result
+
+
+def changed_since(dimensions, recorded):
+    """True if the object's dimensions are no longer those recorded when a
+    value was set by hand: the value may describe a shape that is gone.
+    recorded None, or malformed, means a value set before the dimensions
+    were recorded: unknown, so not flagged. The tolerance absorbs the
+    float32 noise of obj.dimensions, about 0.1 mm per meter."""
+    if recorded is None or len(recorded) != 3:
+        return False
+    return any(not math.isclose(float(now), float(then), rel_tol=1e-4, abs_tol=1e-6)
+               for now, then in zip(dimensions, recorded))
