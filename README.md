@@ -43,7 +43,9 @@ endorsed by Autodesk or the Blender Foundation.
   with openings in the right place. Sending again updates them in place.
   Select a Revit link and the whole linked model comes along, in
   `FromRevit/LinkModel - <link name>`, replaced on every send (heavy on big
-  models).
+  models). Every mesh arrives with a `UVMap` in real meters, ready for
+  textures and for Unreal's lightmap UVs (**Metric UVs** in the panel, on by
+  default).
 
   ![A Revit selection pulled into Blender, then an object baked back as a family](docs/media/bake-family.gif)
 - **Snappable proxies.** Select edges of a Blender mesh in edit mode, go back to object mode and press

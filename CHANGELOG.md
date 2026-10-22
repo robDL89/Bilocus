@@ -32,6 +32,14 @@
   dimensions change: it is still sent until you set it again or clear it.
   A `BL_` parameter you use in a formula in the family editor is kept even
   when it is no longer sent, and one you give a formula is not overwritten.
+- New: **metric UVs on pulled meshes.** Every mesh from Revit arrives with
+  a `UVMap`, one unit per meter: a 1 x 1 m texture shows at its real size
+  on any element. Each face is projected on its own plane, so a wall at
+  any angle is not stretched, and on walls and roofs the texture runs
+  level. Floors keep world X and Y. Exported to Unreal it is UV channel 0,
+  a clean source for Generate Lightmap UVs. Curved surfaces get small
+  breaks between faces: unwrap those by hand if they show. On by default;
+  turn off **Metric UVs** in the pull section to unwrap your own way.
 
 ## 0.2.0 - 2026-10-10
 

@@ -16,9 +16,11 @@ from array import array
 
 import bmesh
 import bpy
+import numpy as np
 from mathutils import Matrix
 
 import bridge_receive as receive
+import bridge_uv as uv_logic
 from bridge_protocol import BridgeMessageError
 
 # ASCII mandatory, like for ToRevit: the name ends up in logs and in the panel.
@@ -59,6 +61,8 @@ WELD_DISTANCE = 0.000005
 # aligns geometry against a reference wants it on for that whole project,
 # not for one session.
 RESET_LOCATION_PROPERTY = "bilocus_reset_location_on_pull"
+# Same reasoning: UVs or not is a choice for the whole project.
+UVS_PROPERTY = "bilocus_metric_uvs_on_pull"
 
 # State of the last pull, read by the panel. Lives in the module and not in
 # the scene: it is session information, it must not be saved in the .blend.
@@ -75,11 +79,26 @@ def register_properties():
                     "it is in Revit and loses rotation and scale. If disabled "
                     "it stays where you put it",
         default=False))
+    setattr(bpy.types.Scene, UVS_PROPERTY, bpy.props.BoolProperty(
+        name="Metric UVs",
+        description="If enabled, every mesh pulled from Revit gets a UVMap "
+                    "in meters, ready for textures. Disable it to unwrap "
+                    "your own way",
+        default=True))
 
 
 def unregister_properties():
-    if hasattr(bpy.types.Scene, RESET_LOCATION_PROPERTY):
-        delattr(bpy.types.Scene, RESET_LOCATION_PROPERTY)
+    for name in (RESET_LOCATION_PROPERTY, UVS_PROPERTY):
+        if hasattr(bpy.types.Scene, name):
+            delattr(bpy.types.Scene, name)
+
+
+def uvs_enabled(scene):
+    """Whether pulled meshes get the metric UVMap. Default enabled: a
+    uniform base for everything, the user unwraps by hand what needs it."""
+    if scene is None:
+        return True
+    return bool(getattr(scene, UVS_PROPERTY, True))
 
 
 def reset_location_enabled(scene):
@@ -185,7 +204,7 @@ def _signature(mesh):
     return receive.mesh_signature(coords.tobytes(), len(mesh.polygons))
 
 
-def _build_mesh(name, positions, indices, mesh_key=None):
+def _build_mesh(name, positions, indices, mesh_key=None, uvs=True):
     """A new mesh datablock from the payload, already marked.
 
     Grouping and index checking come BEFORE meshes.new: a malformed message
@@ -205,10 +224,33 @@ def _build_mesh(name, positions, indices, mesh_key=None):
     finally:
         welded.free()
     mesh.update()
+    if uvs:
+        _write_uvs(mesh)
     if mesh_key is not None:
         mesh[MESH_KEY_MARK] = mesh_key
     mesh[MESH_SIG_MARK] = _signature(mesh)
     return mesh
+
+
+def _write_uvs(mesh):
+    """The metric UVMap of bridge_uv, on the welded mesh. Regenerated on
+    every pull, like the mesh itself: hand work on UVs belongs to a mesh
+    the user has taken over."""
+    if len(mesh.loops) == 0:
+        return
+    coords = np.empty(len(mesh.vertices) * 3, dtype=np.float32)
+    mesh.vertices.foreach_get("co", coords)
+    normals = np.empty(len(mesh.polygons) * 3, dtype=np.float32)
+    mesh.polygons.foreach_get("normal", normals)
+    totals = np.empty(len(mesh.polygons), dtype=np.int32)
+    mesh.polygons.foreach_get("loop_total", totals)
+    loop_vert = np.empty(len(mesh.loops), dtype=np.int32)
+    mesh.loops.foreach_get("vertex_index", loop_vert)
+    # bmesh.to_mesh writes the loops polygon after polygon
+    loop_poly = np.repeat(np.arange(len(totals)), totals)
+    uvs = uv_logic.planar_uvs(coords.reshape(-1, 3), normals.reshape(-1, 3), loop_poly, loop_vert)
+    layer = mesh.uv_layers.new(name="UVMap")
+    layer.data.foreach_set("uv", uvs.astype(np.float32).ravel())
 
 
 def _in_edit_mode(mesh):
@@ -254,7 +296,7 @@ def _remove_if_orphan(mesh):
         bpy.data.meshes.remove(mesh)
 
 
-def _mesh_for_key(fields):
+def _mesh_for_key(fields, scene):
     """(mesh, fresh) for an instance: the one already in the scene for its
     key, otherwise a new one from this batch's revit_mesh."""
     mesh = find_key_mesh(fields["mesh_key"])
@@ -267,7 +309,7 @@ def _mesh_for_key(fields):
                 fields["mesh_key"]))
     positions, indices = stored
     name = fields["type_name"] or fields["name"]
-    return _build_mesh(name, positions, indices, fields["mesh_key"]), True
+    return _build_mesh(name, positions, indices, fields["mesh_key"], uvs_enabled(scene)), True
 
 
 def _write_properties(obj, fields):
@@ -306,7 +348,7 @@ def import_geometry(fields, positions, indices, scene=None):
     if scene is None:
         scene = bpy.context.scene
 
-    mesh_data = _build_mesh(fields["name"], positions, indices)
+    mesh_data = _build_mesh(fields["name"], positions, indices, uvs=uvs_enabled(scene))
     obj = find_object(element_id)
 
     created = obj is None
@@ -383,7 +425,7 @@ def import_instance(fields, scene=None):
     replace_mesh, apply_matrix = receive.instance_update(
         exists, was_instance, touched, reset_location_enabled(scene))
 
-    mesh, fresh = (_mesh_for_key(fields) if replace_mesh else (None, False))
+    mesh, fresh = (_mesh_for_key(fields, scene) if replace_mesh else (None, False))
 
     try:
         if not exists:
@@ -458,7 +500,7 @@ def import_link(fields, positions, indices, now, scene=None):
 
     mesh_key = fields.get("mesh_key")
     if mesh_key is None:
-        mesh = _build_mesh(fields["name"], positions, indices)
+        mesh = _build_mesh(fields["name"], positions, indices, uvs=uvs_enabled(scene))
     else:
         mesh = bpy.data.meshes.get(meshes.get(mesh_key, ""))
         if mesh is None:
@@ -466,7 +508,8 @@ def import_link(fields, positions, indices, now, scene=None):
             if stored is None:
                 raise BridgeMessageError(
                     "mesh_key {} did not arrive in this batch".format(mesh_key))
-            mesh = _build_mesh(fields["type_name"] or fields["name"], stored[0], stored[1])
+            mesh = _build_mesh(fields["type_name"] or fields["name"], stored[0], stored[1],
+                               uvs=uvs_enabled(scene))
             meshes[mesh_key] = mesh.name
 
     obj = bpy.data.objects.new(fields["name"], mesh)

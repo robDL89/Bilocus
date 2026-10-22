@@ -207,7 +207,57 @@ def main():
     check(not any(m.get(imp.MESH_KEY_MARK) == "K8" for m in bpy.data.meshes),
           "no datablock for an unused mesh")
 
+    # 9. every pulled mesh carries the metric UVMap: flat, instance, link
+    batch(3)
+    send_flat(90, (0.0, 0.0, 0.0))
+    send_mesh("K9", scale=2.0)
+    send_instance(91, "K9", matrix(tx=30.0))
+    payload, count = tetra_payload(3.0)
+    imp.handle_geometry({"type": "revit_geometry", "element_id": 92, "name": "Linked [92]",
+                         "category": "Walls", "type_name": "W", "vert_count": count,
+                         "tri_count": count // 3, "origin": [0.0, 60.0, 0.0],
+                         "color": [0.5, 0.5, 0.5, 1.0], "link_id": 5, "link_name": "Big.rvt"},
+                        payload, 0.0)
+    end()
+    linked = next(o for o in bpy.data.objects if o.name.startswith("Linked [92]"))
+    for label, obj in (("flat", pulled(90)), ("instance", pulled(91)), ("link", linked)):
+        check_metric_uv(obj.data, label)
+
+    # 10. with the scene checkbox off, the pull adds no UVs
+    check(getattr(scene, imp.UVS_PROPERTY) is True, "Metric UVs on by default")
+    setattr(scene, imp.UVS_PROPERTY, False)
+    batch(2)
+    send_flat(93, (0.0, 90.0, 0.0))
+    send_mesh("K10")
+    send_instance(94, "K10", matrix(ty=95.0))
+    end()
+    check(len(pulled(93).data.uv_layers) == 0 and len(pulled(94).data.uv_layers) == 0,
+          "checkbox off: flat and instance meshes arrive without UVs")
+    setattr(scene, imp.UVS_PROPERTY, True)
+
     imp.unregister_properties()
+
+
+def check_metric_uv(mesh, label):
+    """Horizontal faces map to world X/Y, vertical ones have v equal to the
+    height: the tetrahedron has one of each besides its slanted face."""
+    check(len(mesh.uv_layers) == 1 and mesh.uv_layers[0].name == "UVMap",
+          "{}: one UVMap ({})".format(label, [layer.name for layer in mesh.uv_layers]))
+    uv = mesh.uv_layers[0].data
+    horizontal = vertical = 0
+    for polygon in mesh.polygons:
+        for loop_index in polygon.loop_indices:
+            co = mesh.vertices[mesh.loops[loop_index].vertex_index].co
+            u, v = uv[loop_index].uv
+            if abs(polygon.normal.z) > 0.99:
+                horizontal += 1
+                check(abs(u - co.x) < 1e-5 and abs(v - co.y) < 1e-5,
+                      "{}: horizontal face mapped to x, y".format(label))
+            elif abs(polygon.normal.z) < 1e-6:
+                vertical += 1
+                check(abs(v - co.z) < 1e-5, "{}: vertical face has v = height".format(label))
+    check(horizontal == 3 and vertical == 6,
+          "{}: checked {} horizontal and {} vertical corners".format(label, horizontal, vertical))
 
 
 try:

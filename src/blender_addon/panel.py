@@ -476,6 +476,8 @@ class BILOCUS_PT_panel(bpy.types.Panel):
         # back into Revit. Same guard as the thresholds below.
         if hasattr(context.scene, imp.RESET_LOCATION_PROPERTY):
             box.prop(context.scene, imp.RESET_LOCATION_PROPERTY)
+        if hasattr(context.scene, imp.UVS_PROPERTY):
+            box.prop(context.scene, imp.UVS_PROPERTY)
 
         # the guard prevents a failed register_properties from turning the
         # panel into an exception on every redraw

@@ -635,6 +635,9 @@ def test_end_to_end(scene, collection, sample, addon_module):
     index = titles.index("Bake into Revit")
     check(titles[index - 1] == "Snappable proxies" and titles[index + 1] == "Last pull from Revit",
           "Bake section between the proxies and the pull: {}".format(titles))
+    props = [line[2] for line in lines if line[1] == "prop"]
+    check("bilocus_metric_uvs_on_pull = True" in props,
+          "panel: Metric UVs checkbox in the pull section, on by default")
     check(not operator_active(lines, "bilocus.bake_directshape"),
           "panel: Bake inactive without a connection")
 
