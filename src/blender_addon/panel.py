@@ -124,7 +124,7 @@ class BILOCUS_OT_set_bake_param(bpy.types.Operator):
         if problem is not None:
             self.report({'ERROR'}, problem)
             return {'CANCELLED'}
-        obj[bake.OVERRIDE_PREFIX + self.key] = value
+        bake.set_override(obj, self.key, value, context.evaluated_depsgraph_get())
         self.report({'INFO'}, "{}: {:.4f}".format(self.key, value))
         return {'FINISHED'}
 
@@ -138,8 +138,8 @@ class BILOCUS_OT_clear_bake_param(bpy.types.Operator):
 
     def execute(self, context):
         obj = context.active_object
-        if obj is not None and (bake.OVERRIDE_PREFIX + self.key) in obj:
-            del obj[bake.OVERRIDE_PREFIX + self.key]
+        if obj is not None:
+            bake.clear_override(obj, self.key)
         return {'FINISHED'}
 
 
@@ -496,10 +496,12 @@ def _draw_family_params(layout, target):
     box = layout.box()
     box.label(text="Family parameters (informative)")
     overrides = bake.overrides_of(target)
+    changed = bake.changed_overrides(target)
     # area None and volume None: shown as computed at bake, not as missing
     for key, name, _kind, value, source in params_logic.rows(
             tuple(target.dimensions), None, None, overrides):
         row = box.row(align=True)
+        icon = 'NONE'
         if source == "none" and key in ("area", "volume"):
             text = "{}: computed at bake".format(name)
             if key == "volume":
@@ -509,7 +511,11 @@ def _draw_family_params(layout, target):
         else:
             unit = "m2" if key == "area" else "m"
             text = "{}: {:.3f} {} ({})".format(name, value, unit, source)
-        row.label(text=text)
+            if key in changed:
+                # still sent: the user decides, with the picker or the X
+                text = "{}: {:.3f} {} (set, object changed)".format(name, value, unit)
+                icon = 'ERROR'
+        row.label(text=text, icon=icon)
         if key in params_logic.OVERRIDABLE:
             op = row.operator("bilocus.set_bake_param", text="", icon='EYEDROPPER')
             op.key = key

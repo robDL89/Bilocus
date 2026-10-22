@@ -715,7 +715,8 @@ namespace Bilocus.Revit.Bake
 
                         // The host's BL_ parameters: with Bake together the
                         // members are often LODs, their values do not add up.
-                        FamilyParameters.Apply(familyDoc, host.Parameters, familyName);
+                        // A fresh family has no formulas: nothing is left out.
+                        FamilyParameters.Apply(familyDoc, host.Parameters, familyName, out _);
                         return null;
                     });
                     if (refusal != null) { return ObjectWrite.Refused(refusal); }
@@ -826,6 +827,8 @@ namespace Bilocus.Revit.Bake
 
                 Family loaded;
                 int removedMembers = 0;
+                List<BakeParameter> written = new List<BakeParameter>();
+                string paramsNote = null;
                 try
                 {
                     string refusal = InTransaction(familyDoc, FamilyTransactionName, () =>
@@ -855,7 +858,7 @@ namespace Bilocus.Revit.Bake
                         removedMembers = RemoveOtherMembers(familyDoc, requested);
 
                         // Added, updated, and the stale BL_ ones removed.
-                        FamilyParameters.Apply(familyDoc, host.Parameters, familyName);
+                        written = FamilyParameters.Apply(familyDoc, host.Parameters, familyName, out paramsNote);
 
                         // For a family the category is changed in place: it
                         // is always replaced, never recreated (contract).
@@ -890,7 +893,7 @@ namespace Bilocus.Revit.Bake
                 {
                     // The reload above keeps the project's type values on
                     // purpose: the BL_ ones are written here, and only them.
-                    FamilyParameters.WriteToTypes(_project, target, host.Parameters);
+                    FamilyParameters.WriteToTypes(_project, target, written);
 
                     List<ElementId> instances = MarkedInstancesOf(target.Id, host.ObjectId);
 
@@ -930,7 +933,9 @@ namespace Bilocus.Revit.Bake
                         + " reloaded, but instance not updated: " + instanceRefusal);
                 }
 
-                return ObjectWrite.Done(false, switched, notMoved, renameNote, target.Name, removedMembers);
+                string note = paramsNote == null ? renameNote
+                    : (renameNote == null ? "" : renameNote + "; ") + "family " + target.Name + ": " + paramsNote;
+                return ObjectWrite.Done(false, switched, notMoved, note, target.Name, removedMembers);
             }
 
             // The bridge's FreeFormElements marked with an obj_id that is not

@@ -58,5 +58,30 @@ namespace Bilocus.Revit.Bake
             }
             return new BakeParameter(name, kind, value);
         }
+
+        // Whether a family parameter formula refers to the parameter named
+        // name. Whole names only: BL_ names are letters after the prefix, so
+        // a letter, digit or underscore next to a match means a longer name.
+        public static bool IsUsedIn(string name, string formula)
+        {
+            if (string.IsNullOrEmpty(formula)) { return false; }
+            int at = formula.IndexOf(name, StringComparison.Ordinal);
+            while (at >= 0)
+            {
+                int end = at + name.Length;
+                if ((at == 0 || !IsNameChar(formula[at - 1]))
+                    && (end == formula.Length || !IsNameChar(formula[end])))
+                {
+                    return true;
+                }
+                at = formula.IndexOf(name, at + 1, StringComparison.Ordinal);
+            }
+            return false;
+        }
+
+        private static bool IsNameChar(char c)
+        {
+            return char.IsLetterOrDigit(c) || c == '_';
+        }
     }
 }

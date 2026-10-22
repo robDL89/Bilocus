@@ -13,8 +13,17 @@ namespace Bilocus.Revit.Bake
     // missing data (an override cleared, a mesh that opened).
     public static class FamilyParameters
     {
-        // Inside an open transaction on the family document.
-        public static void Apply(Document familyDoc, IList<BakeParameter> parameters, string typeName)
+        // Inside an open transaction on the family document. Returns the
+        // parameters actually written; note says which BL_ ones were left
+        // alone, or is null.
+        //
+        // The user may build on a BL_ parameter in the family editor. One
+        // used in another parameter's formula is never removed or re-typed:
+        // RemoveParameter does not throw, it silently empties that formula
+        // (Revit 2025, checked live). One with a formula of its own is the
+        // user's choice and is not overwritten.
+        public static List<BakeParameter> Apply(Document familyDoc, IList<BakeParameter> parameters,
+            string typeName, out string note)
         {
             FamilyManager manager = familyDoc.FamilyManager;
             EnsureCurrentType(manager, typeName);
@@ -27,6 +36,8 @@ namespace Bilocus.Revit.Bake
             List<FamilyParameter> existing = new List<FamilyParameter>();
             foreach (FamilyParameter fp in manager.Parameters) { existing.Add(fp); }
 
+            List<string> left = new List<string>();
+            HashSet<string> keptAsIs = new HashSet<string>();
             foreach (FamilyParameter fp in existing)
             {
                 string name = fp.Definition.Name;
@@ -38,26 +49,60 @@ namespace Bilocus.Revit.Bake
                 if (!wanted.TryGetValue(name, out p) || fp.IsInstance
                     || fp.Definition.GetDataType() != SpecOf(p.Kind))
                 {
+                    string user = FormulaUsing(existing, fp);
+                    if (user != null)
+                    {
+                        keptAsIs.Add(name);
+                        left.Add(name + " kept, used in the formula of " + user);
+                        continue;
+                    }
                     manager.RemoveParameter(fp);
                 }
             }
 
+            List<BakeParameter> written = new List<BakeParameter>();
             foreach (BakeParameter p in parameters)
             {
+                if (keptAsIs.Contains(p.Name)) { continue; }
                 FamilyParameter fp = manager.get_Parameter(p.Name);
                 if (fp == null)
                 {
                     fp = manager.AddParameter(p.Name, GroupTypeId.Geometry, SpecOf(p.Kind), false);
                 }
+                else if (!string.IsNullOrEmpty(fp.Formula))
+                {
+                    // IsDeterminedByFormula reads false here (Revit 2025,
+                    // checked live), and Set would be accepted and ignored:
+                    // the formula text is what tells.
+                    left.Add(p.Name + " not written, it has a formula");
+                    continue;
+                }
                 manager.Set(fp, ToInternal(p));
+                written.Add(p);
             }
+
+            note = left.Count == 0 ? null : string.Join(", ", left);
+            return written;
+        }
+
+        // The name of another parameter whose formula uses fp, or null.
+        private static string FormulaUsing(IList<FamilyParameter> all, FamilyParameter fp)
+        {
+            string name = fp.Definition.Name;
+            foreach (FamilyParameter other in all)
+            {
+                if (other.Id == fp.Id) { continue; }
+                if (BakeParameter.IsUsedIn(name, other.Formula)) { return other.Definition.Name; }
+            }
+            return null;
         }
 
         // Inside an open transaction on the project. The re-bake reloads
         // with overwriteParameterValues false, so the user's own values on
         // the project types stay: the BL_ values are written here, and only
         // those, on every type of the family (they describe the geometry,
-        // which is the same for all of them).
+        // which is the same for all of them). Pass what Apply wrote: a BL_
+        // left alone in the family must be left alone here too.
         public static void WriteToTypes(Document project, Family family, IList<BakeParameter> parameters)
         {
             foreach (ElementId id in family.GetFamilySymbolIds())
