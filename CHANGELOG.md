@@ -18,6 +18,10 @@
   curve on a roof pitch) now becomes one arc on its own plane instead of a
   run of short segments, and a beam picked on it follows that plane. Plan
   and elevation arcs, and helices, are unchanged.
+- New: **preview opacity.** An Opacity slider next to the preview colors in
+  the Blender panel makes the preview faces translucent in Revit, to see
+  the model through them. The edges stay opaque. Applied immediately, no
+  Sync needed; with an older Blender add-in the preview stays opaque.
 
 ## 0.2.0 - 2026-10-10
 

@@ -38,6 +38,9 @@ namespace Bilocus.Revit.Preview
         private VertexBuffer _edgeVertices;
         private VertexFormat _flatFormat;
         private EffectInstance _flatEffect;
+        // Separate from _flatEffect, which the edges use: only the faces get
+        // the preview's transparency.
+        private EffectInstance _flatFaceEffect;
 
         private IndexBuffer _triangleIndices;
         private IndexBuffer _lineIndices;
@@ -82,6 +85,13 @@ namespace Bilocus.Revit.Preview
             _litEffect = new EffectInstance(VertexFormatBits.PositionNormalColored);
             _flatFormat = new VertexFormat(VertexFormatBits.PositionColored);
             _flatEffect = new EffectInstance(VertexFormatBits.PositionColored);
+            _flatFaceEffect = new EffectInstance(VertexFormatBits.PositionColored);
+
+            // The transparency travels both in the vertex colors and on the
+            // face effects: which of the two DC3D honors is not documented.
+            double transparency = faceColor.GetTransparency() / 255.0;
+            _litEffect.SetTransparency(transparency);
+            _flatFaceEffect.SetTransparency(transparency);
 
             _litVertices = BuildLitVertices(chunk, positions, faceColor);
             _flatFaceVertices = BuildFlatVertices(positions, faceColor);
@@ -202,14 +212,18 @@ namespace Bilocus.Revit.Preview
             return buffer;
         }
 
-        public void Draw(DisplayStyle style)
+        public void Draw(DisplayStyle style, bool faces, bool edges)
         {
-            if (style == DisplayStyle.HLR)
+            if (!faces)
+            {
+                // edges only: the transparent pass draws faces, never edges
+            }
+            else if (style == DisplayStyle.HLR)
             {
                 DrawContext.FlushBuffer(
                     _flatFaceVertices, _vertexCount,
                     _triangleIndices, _triangleCount * 3,
-                    _flatFormat, _flatEffect,
+                    _flatFormat, _flatFaceEffect,
                     PrimitiveType.TriangleList,
                     0, _triangleCount);
             }
@@ -223,7 +237,7 @@ namespace Bilocus.Revit.Preview
                     0, _triangleCount);
             }
 
-            if (_lineCount > 0)
+            if (edges && _lineCount > 0)
             {
                 DrawContext.FlushBuffer(
                     _edgeVertices, _vertexCount,

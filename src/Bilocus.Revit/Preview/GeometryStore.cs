@@ -45,6 +45,10 @@ namespace Bilocus.Revit.Preview
         public float[] FaceColor { get { return (float[])_faceColor.Clone(); } }
         public float[] EdgeColor { get { return (float[])_edgeColor.Clone(); } }
 
+        // Opacity of the preview faces, 0..1. Below 1 PreviewServer draws the
+        // faces in Revit's transparent pass; the edges always stay opaque.
+        public float FaceAlpha { get; private set; } = 1f;
+
         // Revision of the last color change: the colors are baked into the
         // GPU vertex buffers, so PreviewServer rebuilds them when it moves.
         public long StyleRevision { get; private set; }
@@ -52,15 +56,19 @@ namespace Bilocus.Revit.Preview
         // Returns false when nothing changed: Blender resends the style at
         // every Connect and Sync, and an unchanged style must not throw
         // away every GPU buffer.
-        public bool SetStyle(float[] faceColor, float[] edgeColor)
+        public bool SetStyle(float[] faceColor, float[] edgeColor, float faceAlpha = 1f)
         {
             if (faceColor == null || faceColor.Length != 3) throw new System.ArgumentException("faceColor must have 3 components");
             if (edgeColor == null || edgeColor.Length != 3) throw new System.ArgumentException("edgeColor must have 3 components");
 
-            if (SameColor(faceColor, _faceColor) && SameColor(edgeColor, _edgeColor)) { return false; }
+            if (faceAlpha < 0f || faceAlpha > 1f) throw new System.ArgumentException("faceAlpha must be between 0 and 1");
+
+            if (SameColor(faceColor, _faceColor) && SameColor(edgeColor, _edgeColor)
+                && faceAlpha == FaceAlpha) { return false; }
 
             _faceColor = (float[])faceColor.Clone();
             _edgeColor = (float[])edgeColor.Clone();
+            FaceAlpha = faceAlpha;
             _revision++;
             StyleRevision = _revision;
             return true;

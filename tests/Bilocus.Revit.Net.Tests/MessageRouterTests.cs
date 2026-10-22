@@ -329,7 +329,43 @@ namespace Bilocus.Revit.Net.Tests
             Assert.Equal(after, store.Revision);
         }
 
+        // face_alpha is optional: an older Blender add-in does not send it,
+        // and the preview stays opaque.
+        [Fact]
+        public void PreviewStyle_WithoutFaceAlpha_IsOpaque()
+        {
+            GeometryStore store = new GeometryStore();
+            MessageRouter router = new MessageRouter(store);
+            Sink sink = new Sink();
+
+            router.Handle(new Frame(
+                "{\"type\":\"preview_style\",\"face\":[0.2,0.3,0.4],\"edge\":[0.9,0.8,0.7]}", null),
+                sink.Send, Host);
+
+            Assert.Equal(1f, store.FaceAlpha);
+        }
+
+        [Fact]
+        public void PreviewStyle_FaceAlpha_IsStoredAndAChangeBumpsTheRevision()
+        {
+            GeometryStore store = new GeometryStore();
+            MessageRouter router = new MessageRouter(store);
+            Sink sink = new Sink();
+            string colors = "\"face\":[0.2,0.3,0.4],\"edge\":[0.9,0.8,0.7]";
+
+            router.Handle(new Frame("{\"type\":\"preview_style\"," + colors + ",\"face_alpha\":1}", null), sink.Send, Host);
+            long opaque = store.StyleRevision;
+            router.Handle(new Frame("{\"type\":\"preview_style\"," + colors + ",\"face_alpha\":0.4}", null), sink.Send, Host);
+
+            Assert.Empty(sink.Sent);
+            Assert.Equal(0.4f, store.FaceAlpha);
+            Assert.True(store.StyleRevision > opaque);
+        }
+
         [Theory]
+        [InlineData("{\"type\":\"preview_style\",\"face\":[0.2,0.3,0.4],\"edge\":[0.9,0.8,0.7],\"face_alpha\":1.5}")]
+        [InlineData("{\"type\":\"preview_style\",\"face\":[0.2,0.3,0.4],\"edge\":[0.9,0.8,0.7],\"face_alpha\":-0.1}")]
+        [InlineData("{\"type\":\"preview_style\",\"face\":[0.2,0.3,0.4],\"edge\":[0.9,0.8,0.7],\"face_alpha\":\"0.5\"}")]
         [InlineData("{\"type\":\"preview_style\",\"face\":[0.2,0.3],\"edge\":[0.9,0.8,0.7]}")]
         [InlineData("{\"type\":\"preview_style\",\"face\":[0.2,0.3,0.4]}")]
         [InlineData("{\"type\":\"preview_style\",\"face\":[0.2,0.3,1.5],\"edge\":[0.9,0.8,0.7]}")]
@@ -346,6 +382,7 @@ namespace Bilocus.Revit.Net.Tests
             Assert.Equal("error", sink.TypeOf(0));
             Assert.Equal(GeometryStore.DefaultFaceColor, store.FaceColor);
             Assert.Equal(GeometryStore.DefaultEdgeColor, store.EdgeColor);
+            Assert.Equal(1f, store.FaceAlpha);
             Assert.Equal(0, store.StyleRevision);
         }
 

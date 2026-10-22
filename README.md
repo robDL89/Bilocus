@@ -31,7 +31,7 @@ endorsed by Autodesk or the Blender Foundation.
   `ToRevit`, press **Sync** and the geometry appears in the Revit 3D views.
   Move, rotate or scale an object (in object mode) and Revit follows in real time. The
   preview is graphics only: nothing is added to the Revit model. Face and
-  edge colors are set in the Blender panel. After changing the geometry (edit
+  edge colors, and the opacity of the faces, are set in the Blender panel. After changing the geometry (edit
   mode, modifiers, geometry nodes), press **Sync** again: modifiers are sent
   as they are, no need to apply them. The preview stays in Revit even
   after Blender is closed: remove it with **Clear Preview**, in the Blender

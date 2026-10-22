@@ -176,7 +176,7 @@ failure would have to be treated as terminal.
 | `clear` | `{type}` | - |
 | `sync_begin` | `{type, obj_ids}` | - |
 | `sync_end` | `{type}` | - |
-| `preview_style` | `{type, face, edge}` | - |
+| `preview_style` | `{type, face, edge, face_alpha?}` | - |
 | `proxy_edges` | `{type, obj_id, name, edge_count, arc_count?}` | `edge_count * 6` float32: two endpoints per edge, x y z each; then `arc_count * 9` float32: start, end, mid-angle point per arc |
 | `bake_begin` | `{type, obj_ids, target, host?}` | - |
 | `bake_mesh` | `{type, obj_id, name, category, matrix, vert_count, face_count, loop_count, tri_count, accept_open, smooth_mesh?}` | positions (vert_count*3 f32) + face_sizes (face_count u32) + face_vertices (loop_count u32) + tri_vertices (tri_count*3 u32) + tri_faces (tri_count u32) |
@@ -203,10 +203,16 @@ side sends an explicit `remove` for every skipped object, before
 
 `preview_style` carries the two colors of the whole preview, `face` and
 `edge`, each an RGB array of three numbers in 0..1 (sRGB, as shown in the
-Blender color picker). Blender sends it at Connect, at every Sync and
-whenever the user changes a color; Revit ignores it when the colors are
-unchanged, otherwise it rebuilds the GPU buffers once, because the colors
-are stored in the vertex buffers. Out-of-range components are an `error`.
+Blender color picker). `face_alpha` is the opacity of the faces in 0..1;
+absent means 1, so an older Blender add-in keeps an opaque preview. Below 1
+the server takes part in Revit's transparent pass: the faces are drawn
+there, with the transparency both in the vertex colors and on the face
+effects, and the edges stay opaque in the opaque pass so the outline stays
+readable. At 1 the preview is drawn in the opaque pass only, as before.
+Blender sends it at Connect, at every Sync and whenever the user changes a
+color or the opacity; Revit ignores it when nothing changed, otherwise it
+rebuilds the GPU buffers once, because the colors are stored in the vertex
+buffers. Out-of-range components or opacity are an `error`.
 The `color` field of `geometry` is still sent but no longer used by the
 preview. What is drawn depends on the view's display style: wireframe
 shows the feature edges only (open borders and edges between faces at
