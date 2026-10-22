@@ -5,10 +5,20 @@
 # xUnit (net8.0 and net48), pytest, and the smoke test inside real Blender.
 name: CI
 
+# Pushes run CI on main only: a branch is checked by its pull request, and
+# running both doubled every job for each push and queued them behind each
+# other. A branch without a pull request can still run it by hand.
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+# A new push to a pull request cancels its run still in progress. Never on
+# main: each merge keeps its own run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
