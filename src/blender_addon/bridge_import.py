@@ -16,9 +16,11 @@ from array import array
 
 import bmesh
 import bpy
+import numpy as np
 from mathutils import Matrix
 
 import bridge_receive as receive
+import bridge_uv as uv_logic
 from bridge_protocol import BridgeMessageError
 
 # ASCII mandatory, like for ToRevit: the name ends up in logs and in the panel.
@@ -205,10 +207,32 @@ def _build_mesh(name, positions, indices, mesh_key=None):
     finally:
         welded.free()
     mesh.update()
+    _write_uvs(mesh)
     if mesh_key is not None:
         mesh[MESH_KEY_MARK] = mesh_key
     mesh[MESH_SIG_MARK] = _signature(mesh)
     return mesh
+
+
+def _write_uvs(mesh):
+    """The metric UVMap of bridge_uv, on the welded mesh. Regenerated on
+    every pull, like the mesh itself: hand work on UVs belongs to a mesh
+    the user has taken over."""
+    if len(mesh.loops) == 0:
+        return
+    coords = np.empty(len(mesh.vertices) * 3, dtype=np.float32)
+    mesh.vertices.foreach_get("co", coords)
+    normals = np.empty(len(mesh.polygons) * 3, dtype=np.float32)
+    mesh.polygons.foreach_get("normal", normals)
+    totals = np.empty(len(mesh.polygons), dtype=np.int32)
+    mesh.polygons.foreach_get("loop_total", totals)
+    loop_vert = np.empty(len(mesh.loops), dtype=np.int32)
+    mesh.loops.foreach_get("vertex_index", loop_vert)
+    # bmesh.to_mesh writes the loops polygon after polygon
+    loop_poly = np.repeat(np.arange(len(totals)), totals)
+    uvs = uv_logic.planar_uvs(coords.reshape(-1, 3), normals.reshape(-1, 3), loop_poly, loop_vert)
+    layer = mesh.uv_layers.new(name="UVMap")
+    layer.data.foreach_set("uv", uvs.astype(np.float32).ravel())
 
 
 def _in_edit_mode(mesh):
