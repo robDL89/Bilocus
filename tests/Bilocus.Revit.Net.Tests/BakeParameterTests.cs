@@ -37,5 +37,21 @@ namespace Bilocus.Revit.Net.Tests
         {
             Assert.Equal(0.0, BakeParameter.Create("BL_Thickness", "length", 0.0).Value);
         }
+
+        [Theory]
+        [InlineData("BL_Length * 2", true)]
+        [InlineData("if(BL_Length > 1 m, 1, 0)", true)]
+        [InlineData("BL_Width+BL_Length", true)]
+        [InlineData("(BL_Length)", true)]
+        [InlineData("BL_LengthTotal / 2", false)]
+        [InlineData("MyBL_Length * 2", false)]
+        [InlineData("BL_Length2 * 2", false)]
+        [InlineData("bl_length * 2", false)]
+        [InlineData("", false)]
+        [InlineData(null, false)]
+        public void IsUsedIn_MatchesWholeNamesOnly(string formula, bool expected)
+        {
+            Assert.Equal(expected, BakeParameter.IsUsedIn("BL_Length", formula));
+        }
     }
 }
