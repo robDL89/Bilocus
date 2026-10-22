@@ -189,6 +189,28 @@ namespace Bilocus.Revit.Net.Tests
             Assert.False(root.TryGetProperty("vert_count", out _));
         }
 
+        // link_id and link_name only for elements of a linked model: a host
+        // element's header stays exactly as before.
+        [Fact]
+        public void LinkFields_PresentOnlyForLinkedElements()
+        {
+            float[] color = new float[] { 0, 0, 0, 1 };
+            JsonElement host = JsonDocument.Parse(MessageRouter.BuildGeometryHeader(
+                1L, "x", null, null, 3, 1, new float[3], color)).RootElement;
+            Assert.False(host.TryGetProperty("link_id", out _));
+            Assert.False(host.TryGetProperty("link_name", out _));
+
+            JsonElement flat = JsonDocument.Parse(MessageRouter.BuildGeometryHeader(
+                1L, "x", null, null, 3, 1, new float[3], color, 777L, "Arch")).RootElement;
+            Assert.Equal(777L, flat.GetProperty("link_id").GetInt64());
+            Assert.Equal("Arch", flat.GetProperty("link_name").GetString());
+
+            JsonElement instance = JsonDocument.Parse(MessageRouter.BuildInstanceHeader(
+                1L, "x", null, null, "k", Identity(), color, 777L, "Arch")).RootElement;
+            Assert.Equal(777L, instance.GetProperty("link_id").GetInt64());
+            Assert.Equal("Arch", instance.GetProperty("link_name").GetString());
+        }
+
         [Fact]
         public void BuildInstanceHeader_NullCategoryAndTypeName_BecomeEmptyStrings()
         {
