@@ -43,12 +43,17 @@ namespace Bilocus.Revit.Pull
         // without guessing - empty means "nothing to send", an exception
         // means "something went wrong" - and can skip the single element
         // while continuing with the others.
-        public static TessellatedMesh Tessellate(Element element)
+        //
+        // transform is null for host elements; for an element of a linked
+        // model it is the link's total transform, which brings the
+        // geometry from the link's coordinates into the host's.
+        public static TessellatedMesh Tessellate(Element element, Transform transform = null)
         {
             if (element == null) { return TessellatedMesh.Empty; }
 
             GeometryElement geometry = element.get_Geometry(CreateOptions());
             if (geometry == null) { return TessellatedMesh.Empty; }
+            if (transform != null) { geometry = geometry.GetTransformed(transform); }
 
             List<float> positions = new List<float>();
             List<float> normals = new List<float>();
@@ -102,7 +107,7 @@ namespace Bilocus.Revit.Pull
         // across instances. Nested instances inside it are flattened by
         // Collect with GetInstanceGeometry, which for them means "in the
         // coordinate system of the symbol that owns them".
-        public static InstancedMesh TessellateInstance(Element element)
+        public static InstancedMesh TessellateInstance(Element element, Transform transform = null)
         {
             if (element == null) { return null; }
 
@@ -135,10 +140,12 @@ namespace Bilocus.Revit.Pull
             TessellatedMesh mesh = new TessellatedMesh(
                 positions.ToArray(), normals.ToArray(), indices, new float[3]);
 
-            Transform transform = single.Transform;
+            Transform placement = transform == null
+                ? single.Transform
+                : transform.Multiply(single.Transform);
             float[] matrix = InstanceGeometry.RowMajorFromTransform(
-                ToArray(transform.BasisX), ToArray(transform.BasisY),
-                ToArray(transform.BasisZ), ToArray(transform.Origin));
+                ToArray(placement.BasisX), ToArray(placement.BasisY),
+                ToArray(placement.BasisZ), ToArray(placement.Origin));
 
             return new InstancedMesh(mesh, InstanceGeometry.ComputeMeshKey(mesh.Positions), matrix);
         }

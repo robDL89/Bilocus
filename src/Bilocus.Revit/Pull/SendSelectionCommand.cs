@@ -74,75 +74,18 @@ namespace Bilocus.Revit.Pull
             {
                 Element element = doc.GetElement(id);
 
-                TessellatedMesh mesh;
-                InstancedMesh instanced;
-                try
+                // A selected link sends its whole model: every model
+                // element of the linked document, placed by the link's
+                // transform. Elements picked INSIDE a link (Tab) never get
+                // here, Selection.GetElementIds does not return them.
+                RevitLinkInstance link = element as RevitLinkInstance;
+                if (link != null)
                 {
-                    // Before tessellation, which is the expensive part: a
-                    // bridge bake must not come back to Blender (feedback
-                    // loop).
-                    if (IsBridgeBake(element))
-                    {
-                        result.SkippedBridgeCount++;
-                        continue;
-                    }
-
-                    // The instance path is an optimization: when it fails the
-                    // element takes the flat path, when in doubt, flat.
-                    try
-                    {
-                        instanced = ElementTessellator.TessellateInstance(element);
-                    }
-                    catch (Exception)
-                    {
-                        instanced = null;
-                    }
-
-                    mesh = instanced != null ? instanced.Mesh : ElementTessellator.Tessellate(element);
-                }
-                catch (Exception ex)
-                {
-                    // An element that blows up must be counted and named, and
-                    // must not stop the others from starting: Tessellate
-                    // propagates exceptions on purpose (see the comment
-                    // there), so the try/catch per element lives here, not
-                    // inside Tessellate. This also applies to reading the
-                    // mark, which throws on a schema GUID collision: without
-                    // knowing whether it is a bake, the element does not
-                    // start and the reason is readable.
-                    result.FailedCount++;
-                    result.LastFailureLabel = DescribeForError(element, id);
-                    result.LastFailureError = string.Format(
-                        "{0}: {1}", ex.GetType().Name, ex.Message);
+                    AddLink(link, result, ready, sharedMeshes);
                     continue;
                 }
 
-                if (mesh.IsEmpty)
-                {
-                    // Normal case: levels, grids, views, annotations.
-                    result.SkippedEmptyCount++;
-                    continue;
-                }
-
-                string category = element != null && element.Category != null
-                    ? element.Category.Name
-                    : null;
-                string typeName = ReadTypeName(doc, element);
-                long elementIdValue = id.Value;
-                string name = ElementNaming.BuildName(category, typeName, elementIdValue);
-
-                if (instanced != null)
-                {
-                    if (!sharedMeshes.ContainsKey(instanced.MeshKey))
-                    {
-                        sharedMeshes.Add(instanced.MeshKey, instanced.Mesh);
-                    }
-                    ready.Add(PendingElement.Instance(elementIdValue, name, category, typeName, instanced));
-                }
-                else
-                {
-                    ready.Add(PendingElement.Flat(elementIdValue, name, category, typeName, mesh));
-                }
+                AddElement(doc, element, id, null, 0, null, result, ready, sharedMeshes);
             }
             result.TessellateMs = ElapsedMs(tessellateStart);
 
@@ -161,6 +104,117 @@ namespace Bilocus.Revit.Pull
 
             TaskDialog.Show("Bilocus", result.BuildSummaryText());
             return Result.Succeeded;
+        }
+
+        private static void AddLink(
+            RevitLinkInstance link, SendSelectionResult result, List<PendingElement> ready,
+            Dictionary<string, TessellatedMesh> sharedMeshes)
+        {
+            Document linkDoc = link.GetLinkDocument();
+            if (linkDoc == null)
+            {
+                result.FailedCount++;
+                result.LastFailureLabel = DescribeForError(link, link.Id);
+                result.LastFailureError = "link not loaded";
+                return;
+            }
+
+            Transform transform = link.GetTotalTransform();
+            long linkId = link.Id.Value;
+            string linkName = linkDoc.Title;
+
+            // Model categories only: views, sheets, annotations and the rest
+            // of the document have no 3d geometry and would only inflate the
+            // "no geometry" count by thousands.
+            foreach (Element linked in new FilteredElementCollector(linkDoc).WhereElementIsNotElementType())
+            {
+                Category category = linked.Category;
+                if (category == null || category.CategoryType != CategoryType.Model) { continue; }
+
+                AddElement(linkDoc, linked, linked.Id, transform, linkId, linkName,
+                    result, ready, sharedMeshes);
+            }
+        }
+
+        // Tessellates one element and queues it in ready, or counts why it
+        // was not. transform and linkName are null for host elements.
+        private static void AddElement(
+            Document doc, Element element, ElementId id, Transform transform,
+            long linkId, string linkName, SendSelectionResult result,
+            List<PendingElement> ready, Dictionary<string, TessellatedMesh> sharedMeshes)
+        {
+            TessellatedMesh mesh;
+            InstancedMesh instanced;
+            try
+            {
+                // Before tessellation, which is the expensive part: a
+                // bridge bake must not come back to Blender (feedback
+                // loop).
+                if (IsBridgeBake(element))
+                {
+                    result.SkippedBridgeCount++;
+                    return;
+                }
+
+                // The instance path is an optimization: when it fails the
+                // element takes the flat path, when in doubt, flat.
+                try
+                {
+                    instanced = ElementTessellator.TessellateInstance(element, transform);
+                }
+                catch (Exception)
+                {
+                    instanced = null;
+                }
+
+                mesh = instanced != null ? instanced.Mesh : ElementTessellator.Tessellate(element, transform);
+            }
+            catch (Exception ex)
+            {
+                // An element that blows up must be counted and named, and
+                // must not stop the others from starting: Tessellate
+                // propagates exceptions on purpose (see the comment
+                // there), so the try/catch per element lives here, not
+                // inside Tessellate. This also applies to reading the
+                // mark, which throws on a schema GUID collision: without
+                // knowing whether it is a bake, the element does not
+                // start and the reason is readable.
+                result.FailedCount++;
+                result.LastFailureLabel = DescribeForError(element, id);
+                result.LastFailureError = string.Format(
+                    "{0}: {1}", ex.GetType().Name, ex.Message);
+                return;
+            }
+
+            if (mesh.IsEmpty)
+            {
+                // Normal case: levels, grids, views, annotations.
+                result.SkippedEmptyCount++;
+                return;
+            }
+
+            string category = element != null && element.Category != null
+                ? element.Category.Name
+                : null;
+            string typeName = ReadTypeName(doc, element);
+            long elementIdValue = id.Value;
+            string system = ReadSystemType(element);
+            string name = ElementNaming.BuildName(category, typeName, elementIdValue, system);
+
+            if (instanced != null)
+            {
+                instanced = new InstancedMesh(
+                    instanced.Mesh, InstanceGeometry.SystemMeshKey(instanced.MeshKey, system), instanced.Matrix);
+                if (!sharedMeshes.ContainsKey(instanced.MeshKey))
+                {
+                    sharedMeshes.Add(instanced.MeshKey, instanced.Mesh);
+                }
+                ready.Add(PendingElement.Instance(elementIdValue, name, category, typeName, instanced, linkId, linkName));
+            }
+            else
+            {
+                ready.Add(PendingElement.Flat(elementIdValue, name, category, typeName, mesh, linkId, linkName));
+            }
         }
 
         private static void SendBatch(
@@ -189,7 +243,8 @@ namespace Bilocus.Revit.Pull
                     string geometryHeader = MessageRouter.BuildGeometryHeader(
                         pending.ElementIdValue, pending.Name, pending.Category, pending.TypeName,
                         pending.Mesh.VertexCount, pending.Mesh.TriangleCount,
-                        pending.Mesh.Origin, ElementNaming.DefaultColor());
+                        pending.Mesh.Origin, ElementNaming.DefaultColor(),
+                        pending.LinkId, pending.LinkName);
                     byte[] payload = MeshPayloadWriter.Write(
                         pending.Mesh.Positions, pending.Mesh.Normals, pending.Mesh.Indices);
                     sent = server.Send(new Frame(geometryHeader, payload));
@@ -218,7 +273,8 @@ namespace Bilocus.Revit.Pull
                     {
                         string instanceHeader = MessageRouter.BuildInstanceHeader(
                             pending.ElementIdValue, pending.Name, pending.Category, pending.TypeName,
-                            pending.MeshKey, pending.Matrix, ElementNaming.DefaultColor());
+                            pending.MeshKey, pending.Matrix, ElementNaming.DefaultColor(),
+                            pending.LinkId, pending.LinkName);
                         sent = server.Send(new Frame(instanceHeader, null));
                     }
                 }
@@ -314,6 +370,24 @@ namespace Bilocus.Revit.Pull
             return typeElement != null ? typeElement.Name : null;
         }
 
+        // The MEP system type ("Domestic Hot Water", or whatever the model
+        // calls it), not the system name, which is numbered per system
+        // ("DHW 3") and would split one material group into many. Null for
+        // everything that is not on a pipe or duct system.
+        private static string ReadSystemType(Element element)
+        {
+            if (element == null) { return null; }
+
+            Parameter parameter = element.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM);
+            if (parameter == null || !parameter.HasValue)
+            {
+                parameter = element.get_Parameter(BuiltInParameter.RBS_DUCT_SYSTEM_TYPE_PARAM);
+            }
+            if (parameter == null || !parameter.HasValue) { return null; }
+
+            return parameter.AsValueString();
+        }
+
         // Used only for the error message of a failed element: it must never
         // throw in turn, or an element already in trouble would take down its
         // own report too.
@@ -351,10 +425,13 @@ namespace Bilocus.Revit.Pull
             public readonly string MeshKey;
             public readonly float[] Matrix;
             public readonly int TriangleCount;
+            public readonly long LinkId;
+            public readonly string LinkName;
 
             private PendingElement(
                 long elementIdValue, string name, string category, string typeName,
-                TessellatedMesh mesh, string meshKey, float[] matrix, int triangleCount)
+                TessellatedMesh mesh, string meshKey, float[] matrix, int triangleCount,
+                long linkId, string linkName)
             {
                 ElementIdValue = elementIdValue;
                 Name = name;
@@ -364,21 +441,27 @@ namespace Bilocus.Revit.Pull
                 MeshKey = meshKey;
                 Matrix = matrix;
                 TriangleCount = triangleCount;
+                LinkId = linkId;
+                LinkName = linkName;
             }
 
             public static PendingElement Flat(
-                long elementIdValue, string name, string category, string typeName, TessellatedMesh mesh)
+                long elementIdValue, string name, string category, string typeName, TessellatedMesh mesh,
+                long linkId, string linkName)
             {
                 return new PendingElement(
-                    elementIdValue, name, category, typeName, mesh, null, null, mesh.TriangleCount);
+                    elementIdValue, name, category, typeName, mesh, null, null, mesh.TriangleCount,
+                    linkId, linkName);
             }
 
             public static PendingElement Instance(
-                long elementIdValue, string name, string category, string typeName, InstancedMesh instanced)
+                long elementIdValue, string name, string category, string typeName, InstancedMesh instanced,
+                long linkId, string linkName)
             {
                 return new PendingElement(
                     elementIdValue, name, category, typeName, null,
-                    instanced.MeshKey, instanced.Matrix, instanced.Mesh.TriangleCount);
+                    instanced.MeshKey, instanced.Matrix, instanced.Mesh.TriangleCount,
+                    linkId, linkName);
             }
         }
     }
