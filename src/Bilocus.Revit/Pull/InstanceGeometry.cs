@@ -32,6 +32,15 @@ namespace Bilocus.Revit.Pull
         // custom properties Blender shows.
         private const int KeyBytes = 16;
 
+        // The key of an element on an MEP system: the same elbow on two
+        // systems must not share one Blender mesh, because materials sit on
+        // the mesh and coloring one system would color the other.
+        public static string SystemMeshKey(string meshKey, string system)
+        {
+            if (system == null || system.Trim().Length == 0) { return meshKey; }
+            return meshKey + "|" + system.Trim();
+        }
+
         public static string ComputeMeshKey(float[] positions)
         {
             if (positions == null) throw new ArgumentNullException("positions");

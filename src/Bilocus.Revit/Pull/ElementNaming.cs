@@ -20,15 +20,27 @@ namespace Bilocus.Revit.Pull
         // with the type when the type is absent. Without this care you get
         // names like " -  [123]", which in a Blender outliner are unreadable
         // and, worse, indistinguishable from each other.
-        public static string BuildName(string category, string typeName, long elementId)
+        //
+        // system is the MEP system type of pipes, ducts and their fittings,
+        // written in parentheses after the category: "Pipes (Hot water) -
+        // Standard [123]". It is what materials are assigned by in Blender,
+        // and a name pattern selects a whole system at once.
+        public static string BuildName(string category, string typeName, long elementId, string system = null)
         {
             string cleanCategory = Clean(category);
             string cleanType = Clean(typeName);
+            string cleanSystem = Clean(system);
 
             if (cleanCategory == null) { cleanCategory = FallbackCategory; }
 
             StringBuilder name = new StringBuilder();
             name.Append(cleanCategory);
+            if (cleanSystem != null)
+            {
+                name.Append(" (");
+                name.Append(cleanSystem);
+                name.Append(")");
+            }
             if (cleanType != null)
             {
                 name.Append(" - ");

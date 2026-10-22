@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- New: **linked models in the pull.** Select a Revit link and press Send
+  Selection: every model element of the linked document arrives in Blender
+  in place, in `FromRevit/LinkModel - <link name>`, with identical family
+  instances sharing one mesh. The sub-collection is rebuilt on every send,
+  so edits to those objects are not kept. Large links take a while; Blender
+  stays usable and the panel shows the progress.
+- New: **MEP system in the name.** Pipes, ducts, fittings and accessories
+  are named with their system type, `Pipes (Domestic Hot Water) - Standard
+  [123]`, and identical fittings on different systems no longer share a
+  mesh: a material per system can be assigned with Select Pattern and
+  Link Materials.
 - New: **preview opacity.** An Opacity slider next to the preview colors in
   the Blender panel makes the preview faces translucent in Revit, to see
   the model through them. The edges stay opaque. Applied immediately, no

@@ -196,8 +196,14 @@ namespace Bilocus.Revit.Proxy
             Schema schema = GetOrCreate();
             if (!schema.ReadAccessGranted()) { return found; }
 
+            // ExtensibleStorageFilter is a quick filter: elements without the
+            // schema (thousands of DirectShape from an IFC, every untouched
+            // curve) are dropped by Revit before being expanded, instead of
+            // costing a GetEntity each across the managed boundary.
             FilteredElementCollector collector =
-                new FilteredElementCollector(document).OfClass(elementClass);
+                new FilteredElementCollector(document)
+                    .OfClass(elementClass)
+                    .WherePasses(new ExtensibleStorageFilter(schema.GUID));
 
             foreach (Element element in collector)
             {

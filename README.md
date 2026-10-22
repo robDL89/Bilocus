@@ -41,6 +41,9 @@ endorsed by Autodesk or the Blender Foundation.
 - **Selection pull, Revit -> Blender.** Select elements in Revit and press
   **Send Selection to Blender**: they arrive in the `FromRevit` collection,
   with openings in the right place. Sending again updates them in place.
+  Select a Revit link and the whole linked model comes along, in
+  `FromRevit/LinkModel - <link name>`, replaced on every send (heavy on big
+  models).
 
   ![A Revit selection pulled into Blender, then an object baked back as a family](docs/media/bake-family.gif)
 - **Snappable proxies.** Select edges of a Blender mesh in edit mode, go back to object mode and press

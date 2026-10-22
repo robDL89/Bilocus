@@ -878,3 +878,97 @@ def test_instance_update_decision_table(exists, was_instance, touched, reset, ex
 ])
 def test_flat_update_reset_rule(was_instance, reset, expected):
     assert bridge_receive.flat_update_resets_transform(was_instance, reset) == expected
+
+
+# --- linked models ---------------------------------------------------------
+
+def test_host_element_has_no_link():
+    fields = bridge_receive.read_instance_header(instance_header())
+    assert fields["element_id"] == "42"
+    assert fields["link"] is None
+
+
+def test_linked_element_key_is_prefixed_by_the_link():
+    # a host element with id 42 must not find the linked one
+    fields = bridge_receive.read_instance_header(
+        instance_header(link_id=777, link_name="Arch"))
+    assert fields["element_id"] == "777:42"
+    assert fields["link"] == "Arch"
+    header = full_header()
+    header.update(link_id=777, link_name="Arch")
+    fields = bridge_receive.read_geometry_header(header)
+    assert fields["element_id"] == "777:348219"
+    assert fields["link"] == "Arch"
+
+
+def test_linked_element_without_name_uses_the_link_id():
+    fields = bridge_receive.read_instance_header(instance_header(link_id=777))
+    assert fields["link"] == "777"
+
+
+def test_link_is_emptied_once_per_batch():
+    state = bridge_receive.BatchState()
+    state.begin(3, 0.0)
+    meshes, first = state.link_meshes("LinkModel - Arch", 0.0)
+    assert first
+    meshes["k"] = "mesh"
+    again, first = state.link_meshes("LinkModel - Arch", 0.0)
+    assert not first and again == {"k": "mesh"}
+    state.begin(3, 1.0)
+    assert state.link_meshes("LinkModel - Arch", 1.0)[1]
+
+
+def test_implicit_batch_does_not_forget_a_link():
+    state = bridge_receive.BatchState()
+    state.link_meshes("LinkModel - Arch", 0.0)
+    state.record(True, 0.0)
+    assert not state.link_meshes("LinkModel - Arch", 0.0)[1]
+
+
+# --- drain with a time budget ---------------------------------------------
+#
+# A pull of a large linked model queues tens of thousands of messages:
+# handled all in one timer tick, Blender stays frozen until the last one.
+
+class FakeClock(object):
+    def __init__(self, step):
+        self.now = 0.0
+        self.step = step
+
+    def __call__(self):
+        self.now += self.step
+        return self.now
+
+
+def queue_of(items):
+    import queue
+    q = queue.Queue()
+    for item in items:
+        q.put(item)
+    return q
+
+
+def test_drain_stops_at_the_budget_and_leaves_the_rest():
+    q = queue_of([("h", i) for i in range(100)])
+    seen = []
+    # every clock reading advances 10 ms: the 50 ms budget runs out after a few
+    empty = bridge_receive.drain(q, lambda h, p: seen.append(p), FakeClock(0.01), 0.05)
+    assert not empty
+    assert 0 < len(seen) < 100
+    assert q.qsize() == 100 - len(seen)
+
+
+def test_drain_empties_a_short_queue():
+    q = queue_of([("h", i) for i in range(5)])
+    seen = []
+    assert bridge_receive.drain(q, lambda h, p: seen.append(p), FakeClock(0.0), 0.05)
+    assert seen == [0, 1, 2, 3, 4]
+    assert q.empty()
+
+
+def test_drain_handles_at_least_one_message_even_with_no_budget():
+    # otherwise a single slow message would stall the queue forever
+    q = queue_of([("h", i) for i in range(3)])
+    seen = []
+    assert not bridge_receive.drain(q, lambda h, p: seen.append(p), FakeClock(1.0), 0.0)
+    assert seen == [0]
