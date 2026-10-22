@@ -6,13 +6,18 @@
   Selection: every model element of the linked document arrives in Blender
   in place, in `FromRevit/LinkModel - <link name>`, with identical family
   instances sharing one mesh. The sub-collection is rebuilt on every send,
-  so edits to those objects are not kept. Large links take a while and
-  Blender is busy until they are in.
+  so edits to those objects are not kept. Large links take a while; Blender
+  stays usable and the panel shows the progress.
 - New: **MEP system in the name.** Pipes, ducts, fittings and accessories
   are named with their system type, `Pipes (Domestic Hot Water) - Standard
   [123]`, and identical fittings on different systems no longer share a
   mesh: a material per system can be assigned with Select Pattern and
   Link Materials.
+- New: **arcs on inclined planes** in Create Proxy, Arcs and lines mode.
+  An arc lying on a plane tilted sideways (a ring on an inclined plane, a
+  curve on a roof pitch) now becomes one arc on its own plane instead of a
+  run of short segments, and a beam picked on it follows that plane. Plan
+  and elevation arcs, and helices, are unchanged.
 
 ## 0.2.0 - 2026-10-10
 
