@@ -310,6 +310,22 @@ def disable_addon(module, installed):
 
 # --- panel drawn on a fake layout -----------------------------------------------
 
+class FakeOperatorProperties(object):
+    """What layout.operator() returns: setting a property the operator does
+    not declare raises in real Blender, so it fails here too."""
+
+    def __init__(self, idname):
+        prefix, name = idname.split(".")
+        rna = getattr(getattr(bpy.ops, prefix), name).get_rna_type()
+        object.__setattr__(self, "_idname", idname)
+        object.__setattr__(self, "_names", set(rna.properties.keys()))
+
+    def __setattr__(self, name, value):
+        if name not in self._names:
+            raise AssertionError("{} has no property {}".format(self._idname, name))
+        object.__setattr__(self, name, value)
+
+
 class FakeLayout(object):
     """Records what draw() asks the layout for, and rejects what would make
     the whole panel disappear in real Blender: a non-existent icon, an
@@ -365,6 +381,7 @@ class FakeLayout(object):
         if icon != 'NONE':
             shown = "{} [{}]".format(shown, icon)
         self.lines.append((self.depth, "operator", shown, self._active()))
+        return FakeOperatorProperties(idname)
 
     def prop(self, data, prop, text=None, **_kwargs):
         if not hasattr(data, prop):
@@ -384,7 +401,9 @@ def draw_panel():
 
 
 def box_titles(lines):
-    return [lines[i + 1][2] for i in range(len(lines) - 1) if lines[i][1] == "box"]
+    # top-level sections only: a box nested in a section is part of it
+    return [lines[i + 1][2] for i in range(len(lines) - 1)
+            if lines[i][1] == "box" and lines[i][0] == 0]
 
 
 def bake_section(lines):
@@ -644,7 +663,14 @@ def test_end_to_end(scene, collection, sample, addon_module):
           "panel: category of the active object")
     check(operator_active(lines, "bilocus.bake_family"),
           "panel: Family Bake active under the same conditions")
-    order = [line[2] for line in section if line[1] in ("prop", "operator")]
+    # the family parameters box is nested one level down, checked on its own
+    depth = section[0][0]
+    pickers = [line for line in section if line[0] > depth
+               and line[1] == "operator" and "bilocus.set_bake_param" in line[2]]
+    check(len(pickers) == len(sys.modules["bridge_params"].OVERRIDABLE),
+          "panel: one picker per overridable family parameter ({})".format(len(pickers)))
+    order = [line[2] for line in section
+             if line[0] == depth and line[1] in ("prop", "operator")]
     expected_order = ["Category = OST_Walls", "Accept open solid = False",
                       "Smooth mesh (no volume) = False",
                       "[Apply to Selected] bilocus.apply_bake_category",
