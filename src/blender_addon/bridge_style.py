@@ -30,12 +30,17 @@ def _rgb(value, what):
     return [round(c, 4) for c in components]
 
 
-def build_style_header(face_color, edge_color):
+def build_style_header(face_color, edge_color, face_alpha=1.0):
     """face_color and edge_color are RGB sequences in 0..1. The scene
     properties use the COLOR_GAMMA subtype: the values are the sRGB ones the
-    user sees in the color picker, which is what Revit expects."""
+    user sees in the color picker, which is what Revit expects. face_alpha is
+    the opacity of the faces in 0..1; the edges stay opaque."""
+    alpha = float(face_alpha)
+    if math.isnan(alpha) or alpha < 0.0 or alpha > 1.0:
+        raise BridgeFramingError("face opacity must be between 0 and 1")
     return {
         "type": "preview_style",
         "face": _rgb(face_color, "face color"),
         "edge": _rgb(edge_color, "edge color"),
+        "face_alpha": round(alpha, 4),
     }

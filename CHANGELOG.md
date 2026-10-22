@@ -13,6 +13,15 @@
   [123]`, and identical fittings on different systems no longer share a
   mesh: a material per system can be assigned with Select Pattern and
   Link Materials.
+- New: **arcs on inclined planes** in Create Proxy, Arcs and lines mode.
+  An arc lying on a plane tilted sideways (a ring on an inclined plane, a
+  curve on a roof pitch) now becomes one arc on its own plane instead of a
+  run of short segments, and a beam picked on it follows that plane. Plan
+  and elevation arcs, and helices, are unchanged.
+- New: **preview opacity.** An Opacity slider next to the preview colors in
+  the Blender panel makes the preview faces translucent in Revit, to see
+  the model through them. The edges stay opaque. Applied immediately, no
+  Sync needed; with an older Blender add-in the preview stays opaque.
 - New: **family dimension parameters.** A family baked from Blender carries
   `BL_Length`, `BL_Width`, `BL_Height`, `BL_Area` and `BL_Volume` (closed
   meshes only) as type parameters, plus `BL_Thickness` when set. Values come

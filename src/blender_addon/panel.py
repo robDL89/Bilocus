@@ -319,6 +319,7 @@ class BILOCUS_PT_panel(bpy.types.Panel):
         row = box.row()
         row.prop(context.scene, "bilocus_face_color")
         row.prop(context.scene, "bilocus_edge_color")
+        box.prop(context.scene, "bilocus_face_opacity", slider=True)
 
         # Proxy: the only bridge command that WRITES into the Revit
         # document. Different source from the rest of the panel, and this

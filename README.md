@@ -31,7 +31,7 @@ endorsed by Autodesk or the Blender Foundation.
   `ToRevit`, press **Sync** and the geometry appears in the Revit 3D views.
   Move, rotate or scale an object (in object mode) and Revit follows in real time. The
   preview is graphics only: nothing is added to the Revit model. Face and
-  edge colors are set in the Blender panel. After changing the geometry (edit
+  edge colors, and the opacity of the faces, are set in the Blender panel. After changing the geometry (edit
   mode, modifiers, geometry nodes), press **Sync** again: modifiers are sent
   as they are, no need to apply them. The preview stays in Revit even
   after Blender is closed: remove it with **Clear Preview**, in the Blender
@@ -198,6 +198,10 @@ the connection drops, the panel says so.
   *handshake ok*) and can freeze on Sync: press **Disconnect** in the first
   one before connecting another.
 - Sync refuses to run while an object is in Edit Mode: press Tab first.
+- In Arcs and lines mode a helix becomes a series of flat arcs: a beam
+  picked on them has a small step in rotation at every joint (about 10
+  degrees with a 1 mm deviation, 5 with 0.1 mm). For helical elements such
+  as stair stringers, model them in Blender and use **Bake**.
 - In Blender, `Shift+D` also copies the Bilocus identifier of an object.
   Bilocus detects the duplicate at the next Sync and gives it a new one. Keep an eye on the `ToRevit` collection because that's
   what will be synced.

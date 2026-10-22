@@ -176,7 +176,7 @@ failure would have to be treated as terminal.
 | `clear` | `{type}` | - |
 | `sync_begin` | `{type, obj_ids}` | - |
 | `sync_end` | `{type}` | - |
-| `preview_style` | `{type, face, edge}` | - |
+| `preview_style` | `{type, face, edge, face_alpha?}` | - |
 | `proxy_edges` | `{type, obj_id, name, edge_count, arc_count?}` | `edge_count * 6` float32: two endpoints per edge, x y z each; then `arc_count * 9` float32: start, end, mid-angle point per arc |
 | `bake_begin` | `{type, obj_ids, target, host?}` | - |
 | `bake_mesh` | `{type, obj_id, name, category, matrix, vert_count, face_count, loop_count, tri_count, accept_open, smooth_mesh?, params?}` | positions (vert_count*3 f32) + face_sizes (face_count u32) + face_vertices (loop_count u32) + tri_vertices (tri_count*3 u32) + tri_faces (tri_count u32) |
@@ -203,10 +203,16 @@ side sends an explicit `remove` for every skipped object, before
 
 `preview_style` carries the two colors of the whole preview, `face` and
 `edge`, each an RGB array of three numbers in 0..1 (sRGB, as shown in the
-Blender color picker). Blender sends it at Connect, at every Sync and
-whenever the user changes a color; Revit ignores it when the colors are
-unchanged, otherwise it rebuilds the GPU buffers once, because the colors
-are stored in the vertex buffers. Out-of-range components are an `error`.
+Blender color picker). `face_alpha` is the opacity of the faces in 0..1;
+absent means 1, so an older Blender add-in keeps an opaque preview. Below 1
+the server takes part in Revit's transparent pass: the faces are drawn
+there, with the transparency both in the vertex colors and on the face
+effects, and the edges stay opaque in the opaque pass so the outline stays
+readable. At 1 the preview is drawn in the opaque pass only, as before.
+Blender sends it at Connect, at every Sync and whenever the user changes a
+color or the opacity; Revit ignores it when nothing changed, otherwise it
+rebuilds the GPU buffers once, because the colors are stored in the vertex
+buffers. Out-of-range components or opacity are an `error`.
 The `color` field of `geometry` is still sent but no longer used by the
 preview. What is drawn depends on the view's display style: wireframe
 shows the feature edges only (open borders and edges between faces at
@@ -346,20 +352,24 @@ within a **maximum deviation from the original vertices**, in millimeters.
   consecutive segments is not imposed.
 - **Chains break at every node that does not have exactly two edges**
   (endpoints, crossings, branches). An arc never crosses a junction.
-- **Arcs only lie on two planes for their chord** (2026-09-16, after the
-  beam test). A beam taken with Pick Lines orients its section on the
-  curve's sketch plane, and an arc on a free plane follows the osculating
-  plane: measured, a 114 m radius arc on a descending stretch had its
-  plane tilted 40 degrees and the beam rolled. Allowed planes: *plan*,
-  which contains the chord and the horizontal perpendicular to it (tilted
-  only by the chord's slope), and *section*, which contains the chord and
-  the vertical. The circle passes through the endpoints and through the
-  projection onto the plane of the middle vertex; the deviation is
-  measured in 3D. A curve that descends while turning becomes more arcs,
-  none of them rolled. Known limit: an arc on a plane tilted around the
-  chord is only recognized if the chord coincides, because the greedy
-  advance tries short chords first. The arc on a free plane is a possible
-  future third option.
+- **Arc planes are tried in a fixed order: plan, section, free**
+  (2026-09-16 after the beam test, free plane added 2026-10-12). A beam
+  taken with Pick Lines orients its section on the curve's sketch plane.
+  *Plan* contains the chord and the horizontal perpendicular to it (tilted
+  only by the chord's slope); a helix sits here, since its osculating
+  plane is the plan plane of the chord, and its beams do not roll.
+  *Section* contains the chord and the vertical. *Free* is the plane of the
+  first, middle and last vertex: an arc really lying on a plane tilted
+  sideways (a ring on an inclined plane, a curve on a roof pitch) stays one
+  arc and the beam follows that plane. The free plane is last on purpose:
+  measured, a 114 m radius arc on a descending stretch got a plane tilted
+  40 degrees by numeric accident and the beam rolled; such an arc holds up
+  on the plan plane and never reaches the free one, which is used only
+  when the vertices leave both other planes beyond the tolerance. The
+  circle passes through the endpoints and through the projection onto the
+  plane of the middle vertex; the deviation is measured in 3D. On a curve
+  that is not planar, consecutive arcs on different free planes give the
+  beam a step in roll at the joint: geometry, not an error.
 - **Arcs of at most half a turn and a radius of at most 1000 m.** Beyond
   that, three nearly aligned points give a numerically fragile center and
   the line wins.
