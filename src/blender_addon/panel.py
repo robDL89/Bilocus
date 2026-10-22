@@ -124,7 +124,7 @@ class BILOCUS_OT_set_bake_param(bpy.types.Operator):
         if problem is not None:
             self.report({'ERROR'}, problem)
             return {'CANCELLED'}
-        bake.set_override(obj, self.key, value)
+        bake.set_override(obj, self.key, value, context.evaluated_depsgraph_get())
         self.report({'INFO'}, "{}: {:.4f}".format(self.key, value))
         return {'FINISHED'}
 

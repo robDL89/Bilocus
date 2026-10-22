@@ -488,9 +488,28 @@ OVERRIDE_PREFIX = "bilocus_param_"
 DIMS_SUFFIX = "_dims"
 
 
-def set_override(obj, key, value):
+def set_override(obj, key, value, depsgraph):
     obj[OVERRIDE_PREFIX + key] = value
-    obj[OVERRIDE_PREFIX + key + DIMS_SUFFIX] = list(obj.dimensions)
+    obj[OVERRIDE_PREFIX + key + DIMS_SUFFIX] = list(evaluated_dimensions(obj, depsgraph))
+
+
+def evaluated_dimensions(obj, depsgraph):
+    """What obj.dimensions reads in Object Mode, computed from the evaluated
+    mesh. Values are set by hand in Edit Mode, where Blender 4.2 and 4.5
+    do not update obj.dimensions after a reshape (5.x does): recording it
+    there flagged the value as soon as the user left Edit Mode."""
+    evaluated = obj.evaluated_get(depsgraph)
+    mesh_data = evaluated.to_mesh()
+    try:
+        count = len(mesh_data.vertices)
+        if count == 0:
+            return tuple(obj.dimensions)
+        co = [0.0] * (3 * count)
+        mesh_data.vertices.foreach_get("co", co)
+    finally:
+        evaluated.to_mesh_clear()
+    scale = obj.matrix_world.to_scale()
+    return tuple((max(co[axis::3]) - min(co[axis::3])) * abs(scale[axis]) for axis in range(3))
 
 
 def clear_override(obj, key):
@@ -501,7 +520,10 @@ def clear_override(obj, key):
 
 def changed_overrides(obj):
     """The keys of the values set by hand while the object had other
-    dimensions than now."""
+    dimensions than now. None in Edit Mode: obj.dimensions is not kept up
+    to date there on Blender 4.x, the flag shows on leaving it."""
+    if obj.mode == 'EDIT':
+        return []
     result = []
     for key in overrides_of(obj):
         recorded = obj.get(OVERRIDE_PREFIX + key + DIMS_SUFFIX)

@@ -912,6 +912,10 @@ def test_manual_values(collection):
     bmesh.update_edit_mesh(box.data)
     bpy.context.view_layer.update()
     result = bpy.ops.bilocus.set_bake_param(key="length")
+    recorded = tuple(box[bake_send.OVERRIDE_PREFIX + "length" + bake_send.DIMS_SUFFIX])
+    check(all(abs(a - b) < 1e-6 for a, b in zip(recorded, (3.0, 1.0, 0.5))),
+          "dimensions recorded in Edit Mode are the reshaped ones: {}".format(recorded))
+    check(bake_send.changed_overrides(box) == [], "no flag while still in Edit Mode")
     bpy.ops.object.mode_set(mode='OBJECT')
     bpy.context.view_layer.update()
     check(result == {'FINISHED'} and abs(bake_send.overrides_of(box)["length"] - 3.0) < 1e-6,
