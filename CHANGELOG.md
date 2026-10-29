@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - 2026-10-29
 
 - New: **linked models in the pull.** Select a Revit link and press Send
   Selection: every model element of the linked document arrives in Blender
