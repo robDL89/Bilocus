@@ -134,7 +134,7 @@ Thanks to Claude Code, I finally had the opportunity to build this workflow by d
 ## Requirements
 
 - Autodesk Revit 2024, 2025, 2026 or 2027
-- Blender 4.2 LTS, 4.5 LTS, 5.1 or 5.2
+- Blender 4.2 LTS, 4.5 LTS, 5.1, 5.2 or 5.3
 - For **Bake Family** only: the English (`Metric Generic Model.rft`) or
   English-Imperial (`Generic Model.rft`) Revit family template library.
 - Windows. Both programs run on the same computer and talk over a local
@@ -216,7 +216,7 @@ the connection drops, the panel says so.
 
 ```powershell
 tools\deploy-revit.ps1 -RevitVersion 2025   # builds and installs the add-in; refuses to run with Revit open
-tools\deploy-blender.ps1 -BlenderVersion 5.2  # installs the Blender add-on
+tools\deploy-blender.ps1 -BlenderVersion 5.3  # installs the Blender add-on
 ```
 
 Requires the .NET SDK. The Revit project is multi-target (`net48` for Revit

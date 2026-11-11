@@ -2,8 +2,8 @@
 # Copyright (c) 2026 Roberto Dolfini
 
 param(
-    [ValidateSet("4.2","4.5","5.1","5.2")]
-    [string]$BlenderVersion = "5.2"
+    [ValidateSet("4.2","4.5","5.1","5.2","5.3")]
+    [string]$BlenderVersion = "5.3"
 )
 
 $ErrorActionPreference = "Stop"

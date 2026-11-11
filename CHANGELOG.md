@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- New: **Blender 5.3** support, tested in CI and in Blender 5.3 with Revit.
 - New: **host collection in the pull.** In a model with linked models, the
   host's own elements arrive in `FromRevit/HostModel - <file name>`, next to
   the `LinkModel` collections. Elements already pulled move there only from
