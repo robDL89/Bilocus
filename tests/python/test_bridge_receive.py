@@ -972,3 +972,24 @@ def test_drain_handles_at_least_one_message_even_with_no_budget():
     seen = []
     assert not bridge_receive.drain(q, lambda h, p: seen.append(p), FakeClock(1.0), 0.0)
     assert seen == [0]
+
+
+# --- read_batch_host ------------------------------------------------------------
+
+def test_read_batch_host():
+    begin = {"type": "revit_batch_begin", "count": 3}
+    assert bridge_receive.read_batch_host(dict(begin, host_name="Progetto_ARC")) == "Progetto_ARC"
+    # absent, empty or not a string: no host collection, FromRevit as before
+    assert bridge_receive.read_batch_host(begin) is None
+    assert bridge_receive.read_batch_host(dict(begin, host_name="")) is None
+    assert bridge_receive.read_batch_host(dict(begin, host_name=7)) is None
+
+
+def test_batch_state_keeps_host_until_next_begin():
+    state = bridge_receive.BatchState()
+    state.begin(2, 0.0, "Progetto_ARC")
+    assert state.host == "Progetto_ARC"
+    state.end(1.0)
+    assert state.host == "Progetto_ARC"
+    state.begin(2, 2.0)
+    assert state.host is None

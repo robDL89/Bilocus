@@ -408,6 +408,16 @@ def read_batch_count(header):
     return value
 
 
+def read_batch_host(header):
+    """The host_name of revit_batch_begin, or None when absent: Revit
+    writes it only for a model with linked models. Anything that is not a
+    non-empty string counts as absent, the objects then go to FromRevit."""
+    value = header.get("host_name")
+    if not isinstance(value, str) or not value:
+        return None
+    return value
+
+
 # --- draining the incoming queue -----------------------------------------
 #
 # The drain runs on Blender's main thread: while it works, nothing redraws
@@ -490,9 +500,12 @@ class BatchState(object):
         # Link sub-collections already emptied in this batch, by name, each
         # with the meshes built for it: {mesh_key: mesh name} (bridge_import).
         self.links = {}
+        # Name of the host model when it has links (revit_batch_begin
+        # host_name), else None: its elements go to FromRevit itself.
+        self.host = None
         self.last_activity = 0.0
 
-    def begin(self, count, now):
+    def begin(self, count, now, host=None):
         """Opens a batch. If one was left open, returns the reason for its
         closure, otherwise None."""
         note = None
@@ -501,6 +514,7 @@ class BatchState(object):
         self._clear()
         self.open = True
         self.expected = count
+        self.host = host
         self.last_activity = now
         self.message = self._progress()
         return note

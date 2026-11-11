@@ -30,6 +30,16 @@ namespace Bilocus.Revit.Net.Tests
         }
 
         [Fact]
+        public void BuildBatchBegin_HostNameOnlyWhenGiven()
+        {
+            JsonElement without = JsonDocument.Parse(MessageRouter.BuildBatchBegin(3)).RootElement;
+            Assert.False(without.TryGetProperty("host_name", out _));
+
+            JsonElement with = JsonDocument.Parse(MessageRouter.BuildBatchBegin(3, "Progetto_ARC")).RootElement;
+            Assert.Equal("Progetto_ARC", with.GetProperty("host_name").GetString());
+        }
+
+        [Fact]
         public void BuildBatchEnd_HasOnlyType()
         {
             string header = MessageRouter.BuildBatchEnd();

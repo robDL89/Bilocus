@@ -29,6 +29,10 @@ COLLECTION_NAME = "FromRevit"
 # Sub-collection of FromRevit holding the objects of one linked model.
 LINK_COLLECTION_PREFIX = "LinkModel - "
 
+# Sub-collection of FromRevit holding the host model's own elements. Used
+# only when the host has linked models, so the two sit side by side.
+HOST_COLLECTION_PREFIX = "HostModel - "
+
 # Custom properties linking the Blender object to the Revit element. The
 # first one is also the key used to find the object again on the next pull:
 # it is a string, for the reason written in receive.element_id_key.
@@ -355,7 +359,7 @@ def import_geometry(fields, positions, indices, scene=None):
     overwritten = False
     if created:
         obj = bpy.data.objects.new(fields["name"], mesh_data)
-        ensure_collection(scene).objects.link(obj)
+        _place_host_object(obj, scene)
         # The object's origin ends up ON THE ELEMENT, not at (0,0,0): that
         # is the whole point of the fix. A wall thirty meters from the
         # scene origin, with the object's origin at zero, rotated fifteen
@@ -406,6 +410,7 @@ def import_geometry(fields, positions, indices, scene=None):
             del obj[MESH_KEY_PROPERTY]
 
         obj.name = fields["name"]
+        _place_host_object(obj, scene)
 
     _write_properties(obj, fields)
     return created, overwritten
@@ -430,7 +435,6 @@ def import_instance(fields, scene=None):
     try:
         if not exists:
             obj = bpy.data.objects.new(fields["name"], mesh)
-            ensure_collection(scene).objects.link(obj)
         elif replace_mesh and obj.data != mesh:
             old_mesh = obj.data
             # A fresh mesh inherits the material slots of the one it replaces:
@@ -448,6 +452,7 @@ def import_instance(fields, scene=None):
 
         if exists:
             obj.name = fields["name"]
+        _place_host_object(obj, scene)
         _write_properties(obj, fields)
         obj[MESH_KEY_PROPERTY] = fields["mesh_key"]
     except Exception:
@@ -471,14 +476,7 @@ def _link_collection(link, now, scene):
     pull of the same link, by design."""
     name = LINK_COLLECTION_PREFIX + link
     meshes, first = LAST_PULL.link_meshes(name, now)
-
-    collection = bpy.data.collections.get(name)
-    if collection is None:
-        collection = bpy.data.collections.new(name)
-    # Same check as ensure_collection: the user may have moved it elsewhere
-    # in the scene, and linking it twice raises RuntimeError.
-    if collection not in scene.collection.children_recursive:
-        ensure_collection(scene).children.link(collection)
+    collection = _sub_collection(name, scene)
 
     if first:
         for obj in list(collection.objects):
@@ -487,6 +485,34 @@ def _link_collection(link, now, scene):
             if isinstance(data, bpy.types.Mesh):
                 _remove_if_orphan(data)
     return collection, meshes
+
+
+def _sub_collection(name, scene):
+    """A collection under FromRevit, created when missing."""
+    collection = bpy.data.collections.get(name)
+    if collection is None:
+        collection = bpy.data.collections.new(name)
+    # Same check as ensure_collection: the user may have moved it elsewhere
+    # in the scene, and linking it twice raises RuntimeError.
+    if collection not in scene.collection.children_recursive:
+        ensure_collection(scene).children.link(collection)
+    return collection
+
+
+def _place_host_object(obj, scene):
+    """Puts a host element where the pull wants it: FromRevit, or its
+    HostModel sub-collection when the host has links. A new object is
+    linked there; an existing one moves only if it sits in the FromRevit
+    root, where the pull left it: a collection the user chose is kept."""
+    root = ensure_collection(scene)
+    target = root
+    if LAST_PULL.host is not None:
+        target = _sub_collection(HOST_COLLECTION_PREFIX + LAST_PULL.host, scene)
+    if not obj.users_collection:
+        target.objects.link(obj)
+    elif target is not root and root in obj.users_collection:
+        target.objects.link(obj)
+        root.objects.unlink(obj)
 
 
 def import_link(fields, positions, indices, now, scene=None):
@@ -592,7 +618,8 @@ def handle_instance(header, payload, now, scene=None):
 
 def handle_batch_begin(header, now):
     """A revit_batch_begin message. Returns a note to print, or None."""
-    note = LAST_PULL.begin(receive.read_batch_count(header), now)
+    note = LAST_PULL.begin(receive.read_batch_count(header), now,
+                           receive.read_batch_host(header))
     if note is None:
         return None
     return "batch opened without closing the previous one ({})".format(note)

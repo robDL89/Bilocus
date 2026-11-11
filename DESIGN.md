@@ -542,7 +542,7 @@ object in Blender deletes nothing in Revit.
 | type | header | payload |
 |---|---|---|
 | `hello_ack` | `{type, protocol_version, revit_version, doc_title}` | - |
-| `revit_batch_begin` | `{type, count}` | - |
+| `revit_batch_begin` | `{type, count, [host_name]}` | - |
 | `revit_geometry` | `{type, element_id, name, category, type_name, vert_count, tri_count, origin, color, [link_id, link_name]}` | positions (vert_count*3 f32) + normals (vert_count*3 f32) + indices (tri_count*3 u32) |
 | `revit_mesh` | `{type, mesh_key, vert_count, tri_count}` | positions + normals + indices, same as `revit_geometry` |
 | `revit_instance` | `{type, element_id, name, category, type_name, mesh_key, matrix, color, [link_id, link_name]}` | - |
@@ -746,6 +746,16 @@ each batch and rebuilt, with no per-element search (quadratic on a whole
 model). Edits to those objects are lost on the next pull of the same link.
 `revit_mesh` and `revit_instance` arriving without a `revit_batch_begin`
 open an implicit batch, like `revit_geometry`.
+
+`revit_batch_begin` carries `host_name`, the host document's title, when
+that document contains at least one `RevitLinkInstance`, whatever is
+selected: the same file always lands in the same place. The host's own
+elements then go into `FromRevit/HostModel - <host_name>`, next to the
+`LinkModel` ones. New objects are created there; an existing one moves there
+only from the `FromRevit` root, so a collection the user chose is kept.
+Without `host_name` (no links, or an older add-in) they stay in `FromRevit`.
+Unlike a link, the host sub-collection is never emptied: its elements keep
+the in-place update.
 
 #### `bake_result`
 
