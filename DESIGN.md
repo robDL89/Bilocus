@@ -523,9 +523,8 @@ same host aligns the family to the objects of THIS bake: their
 `FreeFormElement`s are updated or added, the bridge's ones of objects no
 longer in the bake are deleted (the user's own elements have no mark and
 stay). A member that fails, or is announced and never arrives, keeps its
-previous `FreeFormElement`; if the host fails, nothing is written. A mesh
-that Revit turns into more than one solid is refused: split it into one
-object per piece. The DirectShapes
+previous `FreeFormElement`; if the host fails, nothing is written. Loose
+parts of one object become one solid with several volumes. The DirectShapes
 of all members and the families of their own of the non-host members are
 removed (`switched`). Remove Bake finds a together family through its host
 only, and so does a bake: baking a non-host member on its own creates its

@@ -637,20 +637,13 @@ namespace Bilocus.Revit.Bake
                     return NonManifoldRefusal;
                 }
 
-                IList<GeometryObject> geometry = built.GetGeometricalObjects();
-                Solid first = FirstSolid(geometry);
+                // Loose parts (two cubes joined with Ctrl+J) come back as ONE
+                // solid with several volumes, verified in Revit 2025: the
+                // first solid is the whole object.
+                Solid first = FirstSolid(built.GetGeometricalObjects());
                 if (first == null)
                 {
                     return "the builder did not return a solid (outcome " + outcome + ")";
-                }
-                int solids = CountSolids(geometry);
-                if (solids > 1)
-                {
-                    // Only the first would become a FreeFormElement: the rest
-                    // would disappear without a word.
-                    return string.Format(
-                        "the mesh became {0} separate solids: split it into one object per piece (P > By Loose Parts)",
-                        solids);
                 }
 
                 solid = new MemberSolid
@@ -663,16 +656,6 @@ namespace Bilocus.Revit.Bake
                     SkippedFaces = skippedFaces,
                 };
                 return null;
-            }
-
-            private static int CountSolids(IList<GeometryObject> geometry)
-            {
-                int count = 0;
-                foreach (GeometryObject item in geometry)
-                {
-                    if (item is Solid) { count++; }
-                }
-                return count;
             }
 
             private static Solid FirstSolid(IList<GeometryObject> geometry)
