@@ -49,6 +49,13 @@ namespace Bilocus.Revit.Bake
                 if (!wanted.TryGetValue(name, out p) || fp.IsInstance
                     || fp.Definition.GetDataType() != SpecOf(p.Kind))
                 {
+                    if (!string.IsNullOrEmpty(fp.Formula))
+                    {
+                        // The user gave it a formula: it is theirs now
+                        keptAsIs.Add(name);
+                        left.Add(name + " kept, it has a formula");
+                        continue;
+                    }
                     string user = FormulaUsing(existing, fp);
                     if (user != null)
                     {

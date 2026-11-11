@@ -350,8 +350,7 @@ namespace Bilocus.Revit.Net
             try
             {
                 // Phase B2: target absent = directshape, so a Phase B Blender
-                // keeps doing the bake it used to do. The target is read
-                // before the ids because it decides their cap.
+                // keeps doing the bake it used to do.
                 string target = OptionalTarget(root);
 
                 // host present = "Bake together" (DESIGN.md 5.3). Present
@@ -809,7 +808,7 @@ namespace Bilocus.Revit.Net
                     writer.WriteString("target", result.Target);
                     writer.WriteNumber("switched", result.SwitchedCount);
                     writer.WriteNumber("not_moved", result.NotMovedCount);
-                    writer.WriteString("message", result.BuildMessage());
+                    writer.WriteString("message", result.BuildWireMessage());
                     writer.WriteEndObject();
                 }
                 return Encoding.UTF8.GetString(buffer.ToArray());

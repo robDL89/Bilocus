@@ -75,7 +75,7 @@ DRAIN_INTERVAL = 0.1
 
 @bpy.app.handlers.persistent
 def _on_depsgraph_update(scene, depsgraph):
-    if not client.CLIENT.running:
+    if not client.CLIENT.ready:
         return
 
     collection = coll.find_collection()
@@ -116,6 +116,17 @@ def _on_depsgraph_update(scene, depsgraph):
 
 
 def _flush_transforms():
+    # Same safety net as _handle_safely, for the whole tick: an exception
+    # that reaches Blender unregisters the timer, and the addon would stay
+    # connected but deaf without telling anyone.
+    try:
+        _flush_step()
+    except Exception as error:
+        _log("transform flush failed: {}: {}".format(type(error).__name__, error))
+    return TRANSFORM_INTERVAL
+
+
+def _flush_step():
     if _PENDING:
         # drain BEFORE sending: send() is synchronous and can take a few
         # milliseconds, and whatever arrives meanwhile must end up in the
@@ -124,7 +135,6 @@ def _flush_transforms():
         _PENDING.clear()
         for obj_id, matrix in batch:
             sync.send_transform(obj_id, matrix)
-    return TRANSFORM_INTERVAL
 
 
 def _log(message):
@@ -162,8 +172,21 @@ def _handle_message(header, payload, now):
             client.CLIENT.status = problem
             _log(problem)
         else:
+            client.CLIENT.handshake_ok = True
             client.CLIENT.status = "handshake ok, Revit {}".format(
                 header.get("revit_version", "?"))
+            # Revit starts with the default colors: send the scene's now
+            sync.send_style(bpy.context.scene)
+        _tag_redraw()
+
+    elif kind == "error" and not client.CLIENT.handshake_ok:
+        # an error instead of the hello_ack: Revit refused the hello (a
+        # different protocol version). Staying connected would only get
+        # every later message rejected.
+        client.CLIENT.disconnect()
+        client.CLIENT.status = "Revit refused the connection: {}".format(
+            header.get("message", "?"))
+        _log(client.CLIENT.status)
         _tag_redraw()
 
     elif kind == "error":
@@ -240,8 +263,38 @@ def _handle_safely(header, payload):
 # perf_counter when the previous tick stopped with messages still queued
 _DRAIN_PAUSED_AT = None
 
+# (running, status) seen by the previous tick. The read thread changes
+# both when the connection drops, but it cannot touch bpy: the redraw and
+# the bookkeeping of the drop happen here.
+_LAST_STATE = None
+
+
+def _check_connection_state():
+    global _LAST_STATE
+    state = (client.CLIENT.running, client.CLIENT.status)
+    if state == _LAST_STATE:
+        return
+    dropped = _LAST_STATE is not None and _LAST_STATE[0] and not state[0]
+    _LAST_STATE = state
+    if dropped:
+        # a bake or proxy still waiting will never get its outcome: the
+        # panel would say "waiting" forever
+        for last in (bake.LAST_BAKE, proxy.LAST_PROXY):
+            if client.OUTCOME_PENDING in last["message"]:
+                last["message"] = "connection lost before Revit replied: check the outcome in Revit"
+    _tag_redraw()
+
 
 def _drain_incoming():
+    # same safety net as _flush_transforms
+    try:
+        return _drain_step()
+    except Exception as error:
+        _log("drain failed: {}: {}".format(type(error).__name__, error))
+        return DRAIN_INTERVAL
+
+
+def _drain_step():
     # runs on the main thread: bpy is usable here
     global _DRAIN_PAUSED_AT
     budget = receive.DRAIN_BUDGET_SECONDS
@@ -270,6 +323,10 @@ def _drain_incoming():
     if reason is not None:
         _log("pull interrupted: {}".format(imp.LAST_PULL.message))
         _tag_redraw()
+
+    # after the queue: a result already queued when the connection dropped
+    # is read before the drop is declared
+    _check_connection_state()
 
     return DRAIN_INTERVAL
 

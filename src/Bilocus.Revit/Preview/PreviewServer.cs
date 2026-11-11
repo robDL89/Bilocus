@@ -96,14 +96,24 @@ namespace Bilocus.Revit.Preview
 
                 foreach (StoredObject item in objects)
                 {
-                    List<GpuChunk> chunks = GetOrBuild(item);
-
-                    DrawContext.SetWorldTransform(ToRevitTransform(item.Matrix));
-
-                    foreach (GpuChunk chunk in chunks)
+                    // Per object: a failure on one (a GPU allocation, say)
+                    // must not hide every object after it, nor skip the
+                    // transform reset below.
+                    try
                     {
-                        if (DrawContext.IsInterrupted()) { return; }
-                        chunk.Draw(displayStyle, drawFaces, drawEdges);
+                        List<GpuChunk> chunks = GetOrBuild(item);
+
+                        DrawContext.SetWorldTransform(ToRevitTransform(item.Matrix));
+
+                        foreach (GpuChunk chunk in chunks)
+                        {
+                            if (DrawContext.IsInterrupted()) { return; }
+                            chunk.Draw(displayStyle, drawFaces, drawEdges);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LastError = string.Format("{0}: {1}: {2}", item.Name, ex.GetType().Name, ex.Message);
                     }
                 }
                 // Precaution: the DrawContext is shared across the registered

@@ -132,6 +132,8 @@ namespace Bilocus.Revit.Net
                 : "stopped (the listener thread did not respond within 2 seconds)";
         }
 
+        private const int SendTimeoutMs = 10000;
+
         // Returns true if the frame went out in full.
         public bool Send(Frame frame)
         {
@@ -166,8 +168,15 @@ namespace Bilocus.Revit.Net
                     // promised bytes. The protocol has no delimiters, there is
                     // no realignment, so this is terminal for the connection:
                     // the socket is closed and listening resumes.
-                    _status = "write error, connection closed: " + ex.Message;
-                    CloseClient();
+                    // Only if the failed stream is still THE connection:
+                    // Blender may have reconnected while this Send was
+                    // writing to the old one, and closing now would drop
+                    // the new client for nothing.
+                    if (ReferenceEquals(_stream, stream))
+                    {
+                        _status = "write error, connection closed: " + ex.Message;
+                        CloseClient();
+                    }
                     return false;
                 }
             }
@@ -189,6 +198,12 @@ namespace Bilocus.Revit.Net
                     // of milliseconds of delay. This is the live path, the one
                     // that shows on screen.
                     client.NoDelay = true;
+
+                    // Send runs on Revit's main thread: a Blender that stops
+                    // reading (suspended, hung) would freeze Revit inside a
+                    // write with no way out. The timeout turns that into a
+                    // write error, which Send already treats as terminal.
+                    client.SendTimeout = SendTimeoutMs;
 
                     accepted = true;
                     _client = client;

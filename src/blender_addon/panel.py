@@ -21,9 +21,9 @@ class BILOCUS_OT_connect(bpy.types.Operator):
 
     def execute(self, context):
         client.CLIENT.connect()
-        # Revit starts with the default colors: send the scene's right away.
-        sync.send_style(context.scene)
-        self.report({'INFO'}, client.CLIENT.status)
+        # the scene colors go out with the hello_ack, see _handle_message
+        self.report({'INFO'} if client.CLIENT.running else {'ERROR'},
+                    client.CLIENT.status)
         return {'FINISHED'}
 
 
@@ -274,9 +274,15 @@ class BILOCUS_PT_panel(bpy.types.Panel):
         box = layout.box()
         box.label(text="Port: {}".format(protocol.DEFAULT_PORT))
         box.label(text=client.CLIENT.status)
+        # one of the two at a time: Disconnect after a drop would overwrite
+        # the reason ("connection closed by Revit") with "disconnected"
         row = box.row()
-        row.operator("bilocus.connect")
-        row.operator("bilocus.disconnect")
+        connect = row.row()
+        connect.enabled = not client.CLIENT.running
+        connect.operator("bilocus.connect")
+        disconnect = row.row()
+        disconnect.enabled = client.CLIENT.running
+        disconnect.operator("bilocus.disconnect")
 
         # draw() runs on every redraw of the sidebar: only objects are
         # counted here (a pass over the collection), NEVER triangles.
@@ -305,7 +311,7 @@ class BILOCUS_PT_panel(bpy.types.Panel):
 
         column = box.column()
         column.scale_y = 1.6
-        column.enabled = client.CLIENT.running and not editing
+        column.enabled = client.CLIENT.ready and not editing
         column.operator("bilocus.sync", icon='FILE_REFRESH')
         box.operator("bilocus.clear", icon='TRASH')
 
@@ -371,7 +377,7 @@ class BILOCUS_PT_panel(bpy.types.Panel):
         column.scale_y = 1.4
         # selected None means "not counted", not "zero": the button stays
         # pressable and the real check is done by the operator, only once
-        column.enabled = (client.CLIENT.running and target is not None
+        column.enabled = (client.CLIENT.ready and target is not None
                           and not proxy_editing and selected != 0)
         # EXPORT is the twin of IMPORT, already used below for the opposite
         # direction: a wrong icon identifier does not give a button with no
@@ -437,7 +443,7 @@ class BILOCUS_PT_panel(bpy.types.Panel):
         # knows how to say WHICH object was skipped. Disabling "Bake
         # Family" here for a single wall in the selection would hide the
         # reason.
-        column.enabled = client.CLIENT.running and bool(targets) and not bake_editing
+        column.enabled = client.CLIENT.ready and bool(targets) and not bake_editing
         # EXPORT on both: it is the only icon identifier already seen
         # working inside Blender 5.1 and 5.2. The text tells them apart.
         column.operator("bilocus.bake_directshape", icon='EXPORT')
@@ -446,7 +452,7 @@ class BILOCUS_PT_panel(bpy.types.Panel):
             box.prop(context.scene, bake.TOGETHER_PROPERTY)
 
         row = box.row()
-        row.enabled = client.CLIENT.running and bake.has_remove_candidates(context)
+        row.enabled = client.CLIENT.ready and bake.has_remove_candidates(context)
         row.operator("bilocus.remove_bake", icon='TRASH')
         box.label(text=bake.LAST_BAKE["message"])
 

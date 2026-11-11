@@ -202,7 +202,7 @@ def send_proxy(context=None):
     if context is None:
         context = bpy.context
 
-    if not client.CLIENT.running:
+    if not client.CLIENT.ready:
         return 'ERROR', "not connected to Revit: press Connect"
 
     obj = active_mesh(context)
@@ -262,7 +262,7 @@ def send_proxy(context=None):
     sent = edges.describe_prepared(len(kept), dropped)
     if mode == MODE_ARCS:
         sent = "{} -> {} lines and {} arcs".format(sent, len(lines), len(arcs))
-    notes.insert(0, "sent: {} - waiting for the outcome from Revit".format(sent))
+    notes.insert(0, "sent: {} - {}".format(sent, client.OUTCOME_PENDING))
     message = "; ".join(notes)
     LAST_PROXY["message"] = message
 

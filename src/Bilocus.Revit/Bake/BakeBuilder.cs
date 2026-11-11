@@ -286,7 +286,6 @@ namespace Bilocus.Revit.Bake
             return null;
         }
 
-        // Fills the builder with the object's faces. Returns the rejection
         // What BuildShape hands back: the builder, its result and the face
         // set it was filled with. The caller owns them: the DirectShape bake
         // disposes them after SetShape, the family bake keeps them alive
@@ -402,6 +401,7 @@ namespace Bilocus.Revit.Bake
             }
         }
 
+        // Fills the builder with the object's faces. Returns the rejection
         // reason if no face is left, otherwise null.
         //
         // FamilyBaker reaches it through BuildShape, passing points in FAMILY

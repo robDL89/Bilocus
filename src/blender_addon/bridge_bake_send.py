@@ -294,7 +294,7 @@ def bake_selected(context=None, target="directshape", together=False):
         return 'ERROR', "unknown bake mode: {!r}".format(target)
     family = target == "family"
 
-    if not client.CLIENT.running:
+    if not client.CLIENT.ready:
         return 'ERROR', "not connected to Revit: press Connect"
 
     targets = bake_targets(context)
@@ -407,7 +407,7 @@ def bake_selected(context=None, target="directshape", together=False):
         return 'ERROR', "bake cannot be sent: {}".format(error)
 
     if not client.CLIENT.send(begin):
-        return 'ERROR', "connection lost before the bake"
+        return _record('ERROR', "connection lost before the bake")
 
     sent = 0
     failed = []
@@ -467,7 +467,7 @@ def bake_selected(context=None, target="directshape", together=False):
         message = "no object sent"
     else:
         level = 'WARNING' if notes else 'INFO'
-        message = "{} - waiting for the outcome from Revit".format(_sent_text(sent))
+        message = "{} - {}".format(_sent_text(sent), client.OUTCOME_PENDING)
         if family:
             # the directshape stays as it was in Phase B; the family
             # declares itself, because the wait for a family bake is much
@@ -627,7 +627,7 @@ def _prepare_mesh(obj, obj_id, depsgraph, reject_limit, family=False):
 
 
 def _connected():
-    return client.CLIENT.running and client.CLIENT.socket is not None
+    return client.CLIENT.ready and client.CLIENT.socket is not None
 
 
 def _sent_text(count):
@@ -659,7 +659,7 @@ def remove_bake_selected(context=None):
     if context is None:
         context = bpy.context
 
-    if not client.CLIENT.running:
+    if not client.CLIENT.ready:
         return 'ERROR', "not connected to Revit: press Connect"
 
     objects, ids = remove_targets(context)
@@ -675,8 +675,8 @@ def remove_bake_selected(context=None):
     if not client.CLIENT.send(header):
         return 'ERROR', "connection lost during removal"
 
-    return _record('INFO', "removal requested for {} - waiting for the outcome from Revit".format(
-        _objects_text(len(objects))))
+    return _record('INFO', "removal requested for {} - {}".format(
+        _objects_text(len(objects)), client.OUTCOME_PENDING))
 
 
 def apply_category_to_selected(context=None):

@@ -189,6 +189,17 @@ namespace Bilocus.Revit.Bake
             return Succeeded ? "" : UnknownReason;
         }
 
+        // The message of bake_result: BuildMessage plus the Note. Without the
+        // Note, whoever pressed Bake in Blender would never read what the
+        // Status says (a BL_ value not written, a name already used, the
+        // batch run without the undo group).
+        public string BuildWireMessage()
+        {
+            string message = BuildMessage();
+            if (string.IsNullOrEmpty(Note)) { return message; }
+            return message.Length == 0 ? Note : message + "; " + Note;
+        }
+
         private string DescribeLastFailure()
         {
             string reason = string.IsNullOrEmpty(LastFailureReason) ? UnknownReason : LastFailureReason;

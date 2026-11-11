@@ -83,7 +83,11 @@ removes it.
   the preview restarts empty and a Sync is needed.
 - Only one active connection at a time. A second client is not refused:
   its connection waits in the listener backlog, with no hello_ack, until
-  the first one disconnects.
+  the first one disconnects. The Blender side sends nothing but the
+  `hello` until the `hello_ack` arrives: the panel says "waiting for
+  Revit" and Sync, Bake, Proxy and the live transforms stay off.
+- When the connection drops, a bake or proxy still waiting for its result
+  is marked as lost on the panel: its outcome will not arrive.
 
 ---
 
@@ -186,7 +190,8 @@ failure would have to be treated as terminal.
 `hello` is answered with `hello_ack` only when `protocol_version` matches the
 add-in's (an absent field is accepted); a different version gets an `error`
 frame that names both versions. The Blender side makes the same check on
-`hello_ack` and disconnects on a mismatch.
+`hello_ack` and disconnects on a mismatch; an `error` that arrives before
+any `hello_ack` disconnects as well, with Revit's message as the status.
 
 `sync_begin` lists the ids that are about to arrive: it lets Revit remove,
 at the end, the objects no longer present in the collection, atomically and
@@ -209,7 +214,7 @@ the server takes part in Revit's transparent pass: the faces are drawn
 there, with the transparency both in the vertex colors and on the face
 effects, and the edges stay opaque in the opaque pass so the outline stays
 readable. At 1 the preview is drawn in the opaque pass only, as before.
-Blender sends it at Connect, at every Sync and whenever the user changes a
+Blender sends it at the handshake, at every Sync and whenever the user changes a
 color or the opacity; Revit ignores it when nothing changed, otherwise it
 rebuilds the GPU buffers once, because the colors are stored in the vertex
 buffers. Out-of-range components or opacity are an `error`.
@@ -489,7 +494,8 @@ and a rejection fails only that object.
 **Two modes, `target` on the batch** (Phase B2): `"directshape"` (default
 if absent) or `"family"`. In family mode each object becomes a loadable
 family `BL_<name>` with a `FreeFormElement`, created from
-`English\Metric Generic Model.rft`, loaded without saving and with an
+`English\Metric Generic Model.rft` (falling back to the imperial
+templates), saved as `BL_<name>.rfa` in a temp folder, loaded, and with an
 instance on the nearest level below the origin. Revit decomposes the
 matrix (`FamilyPlacement`): translation and rotation around Z go to the
 instance, tilts and scale go into the geometry. Re-bake does `EditFamily`
@@ -516,11 +522,15 @@ normal family bake is the same thing with a group of one. Re-bake with the
 same host aligns the family to the objects of THIS bake: their
 `FreeFormElement`s are updated or added, the bridge's ones of objects no
 longer in the bake are deleted (the user's own elements have no mark and
-stay). A member that fails is reported and keeps its previous
-`FreeFormElement`; if the host fails, nothing is written. The DirectShapes
+stay). A member that fails, or is announced and never arrives, keeps its
+previous `FreeFormElement`; if the host fails, nothing is written. Loose
+parts of one object become one solid with several volumes. The DirectShapes
 of all members and the families of their own of the non-host members are
 removed (`switched`). Remove Bake finds a together family through its host
-only.
+only, and so does a bake: baking a non-host member on its own creates its
+own family or DirectShape while its `FreeFormElement` stays in the host's
+family, so the geometry is there twice. Re-bake the group from the host, or
+remove the member from it first.
 
 `bake_remove` deletes all `DirectShape` elements, families and instances
 marked with those ids, copies included: it is the explicit request to
@@ -747,7 +757,8 @@ Blender side, a failure also produces the `error` frame.
 `ok` says whether the write to the document succeeded. An object that
 fails inside an otherwise successful bake does not make it false: it ends
 up in `failed` and `message` carries the reason for the last one that
-failed. `as_mesh` counts the objects that came out of the builder as a
+failed, followed by the Note of the Status (`; ` between them) when there
+is one. `as_mesh` counts the objects that came out of the builder as a
 mesh rather than a solid (open mesh or non-manifold). `faces_planar` and
 `faces_triangulated` say how many polygons arrived whole and how many
 fell back to triangles. `target` repeats the batch's mode (`"all"` for

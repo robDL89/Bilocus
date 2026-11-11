@@ -181,6 +181,22 @@ namespace Bilocus.Revit.Net.Tests
         }
 
         [Fact]
+        public void BuildBakeResult_NoteTravelsInTheMessage()
+        {
+            BakeResult result = new BakeResult(BakeResult.ActionBake);
+            result.Succeeded = true;
+            result.CreatedCount = 1;
+            result.Note = "BL_Volume not written, it has a formula";
+
+            Assert.Equal(result.Note, Parse(result).GetProperty("message").GetString());
+
+            result.AddFailure("Wall", "category not allowed");
+            string message = Parse(result).GetProperty("message").GetString();
+            Assert.StartsWith(result.BuildMessage() + "; ", message);
+            Assert.EndsWith(result.Note, message);
+        }
+
+        [Fact]
         public void BuildBakeResult_Remove_HasActionRemove()
         {
             BakeResult result = new BakeResult(BakeResult.ActionRemove);
