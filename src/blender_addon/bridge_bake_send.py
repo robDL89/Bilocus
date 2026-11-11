@@ -407,7 +407,7 @@ def bake_selected(context=None, target="directshape", together=False):
         return 'ERROR', "bake cannot be sent: {}".format(error)
 
     if not client.CLIENT.send(begin):
-        return 'ERROR', "connection lost before the bake"
+        return _record('ERROR', "connection lost before the bake")
 
     sent = 0
     failed = []

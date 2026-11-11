@@ -339,7 +339,7 @@ def build_bake_begin_header(obj_ids, target="directshape", host=None):
 
     target is ALWAYS written, even when it equals the default: Revit treats
     its absence as directshape, but an explicit header reads in the logs
-    without knowing that rule. The object limit depends on the target.
+    without knowing that rule.
 
     host: None for a normal bake. The obj_id of the active object for "Bake
     together": one family with all the objects, named after the host,
@@ -355,7 +355,7 @@ def build_bake_begin_header(obj_ids, target="directshape", host=None):
                 target, ", ".join(BAKE_TARGETS)))
     header = {
         "type": "bake_begin",
-        "obj_ids": _normalize_object_ids(obj_ids, "bake_begin", MAX_BAKE_OBJECTS),
+        "obj_ids": _normalize_object_ids(obj_ids, "bake_begin"),
         "target": target,
     }
     if host is not None:
@@ -473,7 +473,7 @@ def _header_count(value, name):
         raise BridgeFramingError("{} must be an integer, is {!r}".format(name, value))
 
 
-def _normalize_object_ids(obj_ids, message_type, limit=None):
+def _normalize_object_ids(obj_ids, message_type):
     # A string is iterable: without this check "abc" would become three
     # objects named "a", "b" and "c".
     if obj_ids is None or isinstance(obj_ids, (str, bytes)):
@@ -482,15 +482,10 @@ def _normalize_object_ids(obj_ids, message_type, limit=None):
     values = list(obj_ids)
     if not values:
         raise BridgeFramingError("{}: no object in the message".format(message_type))
-    # The default is resolved here and not in the signature: a default in
-    # the signature would freeze the value at import time, and bake_remove
-    # stays on the directshape limit because it removes in both modes.
-    if limit is None:
-        limit = MAX_BAKE_OBJECTS
-    if len(values) > limit:
+    if len(values) > MAX_BAKE_OBJECTS:
         raise BridgeFramingError(
             "{}: {} objects is over the maximum of {}".format(
-                message_type, len(values), limit))
+                message_type, len(values), MAX_BAKE_OBJECTS))
 
     # a loop per OBJECT, at most 500: not the forbidden per-vertex loop
     normalized = [_normalize_object_id(value) for value in values]

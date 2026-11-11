@@ -494,7 +494,8 @@ and a rejection fails only that object.
 **Two modes, `target` on the batch** (Phase B2): `"directshape"` (default
 if absent) or `"family"`. In family mode each object becomes a loadable
 family `BL_<name>` with a `FreeFormElement`, created from
-`English\Metric Generic Model.rft`, loaded without saving and with an
+`English\Metric Generic Model.rft` (falling back to the imperial
+templates), saved as `BL_<name>.rfa` in a temp folder, loaded, and with an
 instance on the nearest level below the origin. Revit decomposes the
 matrix (`FamilyPlacement`): translation and rotation around Z go to the
 instance, tilts and scale go into the geometry. Re-bake does `EditFamily`
@@ -521,11 +522,16 @@ normal family bake is the same thing with a group of one. Re-bake with the
 same host aligns the family to the objects of THIS bake: their
 `FreeFormElement`s are updated or added, the bridge's ones of objects no
 longer in the bake are deleted (the user's own elements have no mark and
-stay). A member that fails is reported and keeps its previous
-`FreeFormElement`; if the host fails, nothing is written. The DirectShapes
+stay). A member that fails, or is announced and never arrives, keeps its
+previous `FreeFormElement`; if the host fails, nothing is written. A mesh
+that Revit turns into more than one solid is refused: split it into one
+object per piece. The DirectShapes
 of all members and the families of their own of the non-host members are
 removed (`switched`). Remove Bake finds a together family through its host
-only.
+only, and so does a bake: baking a non-host member on its own creates its
+own family or DirectShape while its `FreeFormElement` stays in the host's
+family, so the geometry is there twice. Re-bake the group from the host, or
+remove the member from it first.
 
 `bake_remove` deletes all `DirectShape` elements, families and instances
 marked with those ids, copies included: it is the explicit request to
@@ -752,7 +758,8 @@ Blender side, a failure also produces the `error` frame.
 `ok` says whether the write to the document succeeded. An object that
 fails inside an otherwise successful bake does not make it false: it ends
 up in `failed` and `message` carries the reason for the last one that
-failed. `as_mesh` counts the objects that came out of the builder as a
+failed, followed by the Note of the Status (`; ` between them) when there
+is one. `as_mesh` counts the objects that came out of the builder as a
 mesh rather than a solid (open mesh or non-manifold). `faces_planar` and
 `faces_triangulated` say how many polygons arrived whole and how many
 fell back to triangles. `target` repeats the batch's mode (`"all"` for

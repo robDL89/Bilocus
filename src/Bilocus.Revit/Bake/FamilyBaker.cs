@@ -43,10 +43,11 @@ namespace Bilocus.Revit.Bake
     // Note.
     //
     // CTRL+Z. A TransactionGroup is tried around the whole batch, as in the
-    // DirectShape bake. If Revit rejects LoadFamily or EditFamily with the
-    // group open (nobody could test it outside the add-in), the group rolls
-    // back, it is remembered for the session and the batch is run again from
-    // scratch without a group: more undo entries, stated in the Status Note.
+    // DirectShape bake. Verified in Revit that LoadFamily and EditFamily
+    // accept the open group. Kept as a safety net: if Revit ever rejects
+    // them, the group rolls back, it is remembered for the session and the
+    // batch is run again from scratch without a group: more undo entries,
+    // stated in the Status Note.
     //
     // As in BakeBuilder: a failure that concerns an object fails only that
     // ONE object, counted and named in BakeResult. No TaskDialog.
@@ -88,11 +89,6 @@ namespace Bilocus.Revit.Bake
         // document, and rediscovering it on every bake would mean redoing
         // half the batch every time.
         private static bool? _groupAllowsFamilyLoad;
-
-        public static bool? GroupAllowsFamilyLoad
-        {
-            get { return _groupAllowsFamilyLoad; }
-        }
 
         // The candidate template paths for this version of Revit, in the
         // order they are tried. Public because the error message cites them,
@@ -510,6 +506,16 @@ namespace Bilocus.Revit.Bake
                 {
                     List<MemberSolid> built = new List<MemberSolid>();
                     HashSet<string> requested = new HashSet<string>(StringComparer.Ordinal);
+                    if (_batch.Together)
+                    {
+                        // Announced but never arrived (pack failed in
+                        // Blender, frame rejected) is not "no longer
+                        // selected": its FreeFormElement stays, like a
+                        // member that fails. Only together: in a normal
+                        // bake the other announced ids are families of
+                        // their own and must leave the host's.
+                        foreach (string id in _batch.AnnouncedIds) { requested.Add(id); }
+                    }
                     List<string> otherCategories = new List<string>();
                     int facesPlanar = 0;
                     int facesTriangulated = 0;
@@ -631,16 +637,25 @@ namespace Bilocus.Revit.Bake
                     return NonManifoldRefusal;
                 }
 
-                Solid first = FirstSolid(built.GetGeometricalObjects());
+                IList<GeometryObject> geometry = built.GetGeometricalObjects();
+                Solid first = FirstSolid(geometry);
                 if (first == null)
                 {
                     return "the builder did not return a solid (outcome " + outcome + ")";
+                }
+                int solids = CountSolids(geometry);
+                if (solids > 1)
+                {
+                    // Only the first would become a FreeFormElement: the rest
+                    // would disappear without a word.
+                    return string.Format(
+                        "the mesh became {0} separate solids: split it into one object per piece (P > By Loose Parts)",
+                        solids);
                 }
 
                 solid = new MemberSolid
                 {
                     ObjectId = member.ObjectId,
-                    Name = member.Name,
                     Solid = first,
                     OpenShell = openShell,
                     FacesPlanar = faces.PlanarCount,
@@ -648,6 +663,16 @@ namespace Bilocus.Revit.Bake
                     SkippedFaces = skippedFaces,
                 };
                 return null;
+            }
+
+            private static int CountSolids(IList<GeometryObject> geometry)
+            {
+                int count = 0;
+                foreach (GeometryObject item in geometry)
+                {
+                    if (item is Solid) { count++; }
+                }
+                return count;
             }
 
             private static Solid FirstSolid(IList<GeometryObject> geometry)
@@ -1374,7 +1399,6 @@ namespace Bilocus.Revit.Bake
         private sealed class MemberSolid
         {
             public string ObjectId;
-            public string Name;
             public Solid Solid;
             public bool OpenShell;
             public int FacesPlanar;
