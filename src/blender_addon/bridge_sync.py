@@ -150,7 +150,7 @@ def sync_all(context=None):
     if context is None:
         context = bpy.context
 
-    if not client.CLIENT.running:
+    if not client.CLIENT.ready:
         return 'ERROR', "not connected to Revit: press Connect"
 
     scene = context.scene
@@ -264,7 +264,7 @@ def send_clear():
 def send_style(scene):
     """Sends the preview colors of the scene. False if not connected or if
     the colors are invalid (they cannot be, the properties are clamped)."""
-    if not client.CLIENT.running:
+    if not client.CLIENT.ready:
         return False
     try:
         header = style.build_style_header(

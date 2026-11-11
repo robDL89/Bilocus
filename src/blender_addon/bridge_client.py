@@ -16,6 +16,11 @@ except ImportError:
 
 import bridge_protocol as protocol
 
+# End of the panel line of a bake, removal or proxy sent and not answered
+# yet. The drain looks for it when the connection drops, to say that the
+# outcome will not come.
+OUTCOME_PENDING = "waiting for the outcome from Revit"
+
 
 class BridgeClient(object):
 
@@ -23,6 +28,11 @@ class BridgeClient(object):
         self.socket = None
         self.thread = None
         self.running = False
+        # True once Revit answered the hello with a valid hello_ack. A TCP
+        # connect alone proves nothing: a second Blender is accepted into
+        # the backlog of a Revit already serving the first one, and nobody
+        # reads it.
+        self.handshake_ok = False
         self.status = "disconnected"
         self.incoming = queue.Queue()
         self._write_lock = threading.Lock()
@@ -56,8 +66,9 @@ class BridgeClient(object):
             return
 
         self.socket = sock
+        self.handshake_ok = False
         self.running = True
-        self.status = "connected to {}:{}".format(host, port)
+        self.status = "connected to {}:{}, waiting for Revit".format(host, port)
 
         # The thread gets ITS socket: see _owns for why it must not read
         # self.socket instead.
@@ -68,6 +79,12 @@ class BridgeClient(object):
         self.send({"type": "hello",
                    "protocol_version": protocol.PROTOCOL_VERSION,
                    "client": "blender"})
+
+    @property
+    def ready(self):
+        """Connected AND handshake done: the only state in which anything
+        but the hello may be sent."""
+        return self.running and self.handshake_ok
 
     def disconnect(self):
         self.running = False

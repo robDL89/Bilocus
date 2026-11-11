@@ -646,6 +646,9 @@ def test_end_to_end(scene, collection, sample, addon_module):
     check(client.CLIENT.running, "bridge_client connected to the fake Revit on port {}".format(
         server.port))
     check(server.wait_for("hello"), "hello received from the fake Revit")
+    # the fake Revit sends no hello_ack, and in background mode no timer
+    # would drain it anyway: stand in for the handshake
+    client.CLIENT.handshake_ok = True
 
     select_only([outside])
     level, message = bake_send.bake_selected(bpy.context)

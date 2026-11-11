@@ -392,3 +392,29 @@ def test_bridge_client_module_never_imports_bpy():
     with open(path, "r") as handle:
         source = handle.read()
     assert "bpy" not in source
+
+
+def test_ready_only_after_handshake():
+    # A TCP connect is not enough to send: a second Blender lands in the
+    # backlog of a Revit busy with the first one and nobody reads it.
+    server = FakeServer()
+    client_obj = bridge_client.BridgeClient()
+    try:
+        client_obj.connect(host=protocol.DEFAULT_HOST, port=server.port)
+        server.accept_one()
+        assert client_obj.running
+        assert not client_obj.ready
+        assert "waiting for Revit" in client_obj.status
+
+        client_obj.handshake_ok = True  # what the drain does on hello_ack
+        assert client_obj.ready
+
+        client_obj.disconnect()
+        assert not client_obj.ready
+
+        # a new connection starts over, it does not inherit the old ack
+        client_obj.connect(host=protocol.DEFAULT_HOST, port=server.port)
+        assert client_obj.running and not client_obj.ready
+    finally:
+        client_obj.disconnect()
+        server.close()

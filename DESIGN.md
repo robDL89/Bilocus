@@ -83,7 +83,11 @@ removes it.
   the preview restarts empty and a Sync is needed.
 - Only one active connection at a time. A second client is not refused:
   its connection waits in the listener backlog, with no hello_ack, until
-  the first one disconnects.
+  the first one disconnects. The Blender side sends nothing but the
+  `hello` until the `hello_ack` arrives: the panel says "waiting for
+  Revit" and Sync, Bake, Proxy and the live transforms stay off.
+- When the connection drops, a bake or proxy still waiting for its result
+  is marked as lost on the panel: its outcome will not arrive.
 
 ---
 
@@ -186,7 +190,8 @@ failure would have to be treated as terminal.
 `hello` is answered with `hello_ack` only when `protocol_version` matches the
 add-in's (an absent field is accepted); a different version gets an `error`
 frame that names both versions. The Blender side makes the same check on
-`hello_ack` and disconnects on a mismatch.
+`hello_ack` and disconnects on a mismatch; an `error` that arrives before
+any `hello_ack` disconnects as well, with Revit's message as the status.
 
 `sync_begin` lists the ids that are about to arrive: it lets Revit remove,
 at the end, the objects no longer present in the collection, atomically and
@@ -209,7 +214,7 @@ the server takes part in Revit's transparent pass: the faces are drawn
 there, with the transparency both in the vertex colors and on the face
 effects, and the edges stay opaque in the opaque pass so the outline stays
 readable. At 1 the preview is drawn in the opaque pass only, as before.
-Blender sends it at Connect, at every Sync and whenever the user changes a
+Blender sends it at the handshake, at every Sync and whenever the user changes a
 color or the opacity; Revit ignores it when nothing changed, otherwise it
 rebuilds the GPU buffers once, because the colors are stored in the vertex
 buffers. Out-of-range components or opacity are an `error`.
