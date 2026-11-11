@@ -196,9 +196,8 @@ the connection drops, the panel says so.
   Bilocus reads one Blender unit as one meter. The length unit shown in
   Blender (m, cm, mm) does not matter.
 - One Blender at a time. A second Blender that connects while the first is
-  still connected gets no answer from Revit (its panel never shows
-  *handshake ok*) and can freeze on Sync: press **Disconnect** in the first
-  one before connecting another.
+  still connected waits: its panel shows *waiting for Revit* and its
+  buttons stay off until the first one presses **Disconnect**.
 - Sync refuses to run while an object is in Edit Mode: press Tab first.
 - In Arcs and lines mode a helix becomes a series of flat arcs: a beam
   picked on them has a small step in rotation at every joint (about 10
