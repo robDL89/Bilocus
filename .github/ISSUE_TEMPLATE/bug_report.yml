@@ -25,8 +25,11 @@ body:
     attributes:
       label: Blender version
       options:
+        - "4.2"
+        - "4.5"
         - "5.1"
         - "5.2"
+        - "5.3"
         - Other
     validations:
       required: true
