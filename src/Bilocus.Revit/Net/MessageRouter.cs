@@ -555,7 +555,11 @@ namespace Bilocus.Revit.Net
         // backslashes, non-ASCII characters: Utf8JsonWriter writes them
         // correctly, a hand-rolled string.Format does not.
 
-        public static string BuildBatchBegin(int count)
+        // hostName non-null: the document has linked models, and the Blender
+        // side puts the host's own elements in FromRevit/HostModel - <name>,
+        // next to the LinkModel ones. Absent when there are no links: then
+        // everything stays in FromRevit, as before.
+        public static string BuildBatchBegin(int count, string hostName = null)
         {
             using (MemoryStream buffer = new MemoryStream())
             {
@@ -564,6 +568,10 @@ namespace Bilocus.Revit.Net
                     writer.WriteStartObject();
                     writer.WriteString("type", "revit_batch_begin");
                     writer.WriteNumber("count", count);
+                    if (!string.IsNullOrEmpty(hostName))
+                    {
+                        writer.WriteString("host_name", hostName);
+                    }
                     writer.WriteEndObject();
                 }
                 return Encoding.UTF8.GetString(buffer.ToArray());

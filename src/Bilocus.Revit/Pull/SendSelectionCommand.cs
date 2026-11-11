@@ -99,7 +99,7 @@ namespace Bilocus.Revit.Pull
             }
 
             long sendStart = Stopwatch.GetTimestamp();
-            SendBatch(server, ready, sharedMeshes, result);
+            SendBatch(server, ready, sharedMeshes, result, HostNameIfLinked(doc));
             result.SendMs = ElapsedMs(sendStart);
 
             TaskDialog.Show("Bilocus", result.BuildSummaryText());
@@ -217,11 +217,23 @@ namespace Bilocus.Revit.Pull
             }
         }
 
+        // The document's name when it has at least one linked model, else
+        // null. Decided on the model and not on the selection: the same file
+        // always lands in the same Blender collection, whatever is selected.
+        private static string HostNameIfLinked(Document doc)
+        {
+            bool hasLinks = new FilteredElementCollector(doc)
+                .OfClass(typeof(RevitLinkInstance))
+                .FirstElementId() != ElementId.InvalidElementId;
+            return hasLinks ? doc.Title : null;
+        }
+
         private static void SendBatch(
             BridgeServer server, List<PendingElement> ready,
-            Dictionary<string, TessellatedMesh> sharedMeshes, SendSelectionResult result)
+            Dictionary<string, TessellatedMesh> sharedMeshes, SendSelectionResult result,
+            string hostName)
         {
-            string beginHeader = MessageRouter.BuildBatchBegin(ready.Count);
+            string beginHeader = MessageRouter.BuildBatchBegin(ready.Count, hostName);
             if (!server.Send(new Frame(beginHeader, null)))
             {
                 result.Aborted = true;

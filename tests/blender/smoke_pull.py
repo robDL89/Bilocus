@@ -99,8 +99,11 @@ def pulled(element_id):
     return imp.find_object(str(element_id))
 
 
-def batch(count, now=0.0):
-    imp.handle_batch_begin({"type": "revit_batch_begin", "count": count}, now)
+def batch(count, now=0.0, host=None):
+    header = {"type": "revit_batch_begin", "count": count}
+    if host is not None:
+        header["host_name"] = host
+    imp.handle_batch_begin(header, now)
 
 
 def end(now=0.0):
@@ -234,6 +237,33 @@ def main():
     check(len(pulled(93).data.uv_layers) == 0 and len(pulled(94).data.uv_layers) == 0,
           "checkbox off: flat and instance meshes arrive without UVs")
     setattr(scene, imp.UVS_PROPERTY, True)
+
+    # 11. a host with links: its elements go to HostModel - <name>; one
+    # still in the FromRevit root moves there, one the user moved stays
+    root = imp.ensure_collection(scene)
+    elsewhere = bpy.data.collections.new("UserPlaced")
+    scene.collection.children.link(elsewhere)
+    root.objects.unlink(pulled(93))
+    elsewhere.objects.link(pulled(93))
+    batch(4, host="Progetto_ARC")
+    send_flat(90, (0.0, 0.0, 0.0))
+    send_flat(93, (0.0, 90.0, 0.0))
+    send_flat(95, (0.0, 120.0, 0.0))
+    send_mesh("K9", scale=2.0)
+    send_instance(91, "K9", matrix(tx=30.0))
+    end()
+    host = bpy.data.collections.get(imp.HOST_COLLECTION_PREFIX + "Progetto_ARC")
+    check(host is not None and host.name in root.children, "HostModel collection created under FromRevit")
+    check(pulled(95).users_collection[:] == (host,), "new host element in HostModel")
+    check(pulled(90).users_collection[:] == (host,) and pulled(91).users_collection[:] == (host,),
+          "flat and instance moved from the FromRevit root to HostModel")
+    check(pulled(93).users_collection[:] == (elsewhere,), "element placed by the user left where it is")
+
+    # 12. no links: new host elements stay in the FromRevit root
+    batch(1)
+    send_flat(96, (0.0, 150.0, 0.0))
+    end()
+    check(pulled(96).users_collection[:] == (root,), "no host_name: new element in FromRevit")
 
     imp.unregister_properties()
 

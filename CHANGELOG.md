@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- New: **host collection in the pull.** In a model with linked models, the
+  host's own elements arrive in `FromRevit/HostModel - <file name>`, next to
+  the `LinkModel` collections. Elements already pulled move there only from
+  the `FromRevit` root; a model without links keeps everything in
+  `FromRevit`.
+- Fixed: Blender sends nothing until Revit answers the handshake. A second
+  Blender waits on *waiting for Revit* instead of freezing on Sync, and a
+  protocol mismatch disconnects.
+- Fixed: a dropped connection redraws the panel and marks a bake or proxy
+  still waiting as lost.
+- Fixed: Bake together keeps the previous geometry of a member that fails,
+  and the Revit Status note now shows in the Blender panel.
+- Fixed: a `BL_` parameter with a formula of its own is no longer removed.
+- Fixed: a Blender that stops reading can no longer freeze Revit on a send.
+
 ## 0.3.0 - 2026-10-29
 
 - New: **linked models in the pull.** Select a Revit link and press Send

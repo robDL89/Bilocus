@@ -43,7 +43,8 @@ endorsed by Autodesk or the Blender Foundation.
   with openings in the right place. Sending again updates them in place.
   Select a Revit link and the whole linked model comes along, in
   `FromRevit/LinkModel - <link name>`, replaced on every send (heavy on big
-  models). Every mesh arrives with a `UVMap` in real meters, ready for
+  models). In a model with links, the host's own elements go to
+  `FromRevit/HostModel - <file name>`. Every mesh arrives with a `UVMap` in real meters, ready for
   textures and for Unreal's lightmap UVs (**Metric UVs** in the panel, on by
   default).
 
