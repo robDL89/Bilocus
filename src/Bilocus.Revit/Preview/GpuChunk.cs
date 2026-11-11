@@ -47,7 +47,12 @@ namespace Bilocus.Revit.Preview
 
         public bool IsValid()
         {
-            return _litVertices != null && _litVertices.IsValid()
+            return _litFormat != null && _litFormat.IsValid()
+                && _flatFormat != null && _flatFormat.IsValid()
+                && _litEffect != null && _litEffect.IsValid()
+                && _flatEffect != null && _flatEffect.IsValid()
+                && _flatFaceEffect != null && _flatFaceEffect.IsValid()
+                && _litVertices != null && _litVertices.IsValid()
                 && _flatFaceVertices != null && _flatFaceVertices.IsValid()
                 && _triangleIndices != null && _triangleIndices.IsValid()
                 && (_lineCount == 0

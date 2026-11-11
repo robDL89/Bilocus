@@ -116,6 +116,17 @@ def _on_depsgraph_update(scene, depsgraph):
 
 
 def _flush_transforms():
+    # Same safety net as _handle_safely, for the whole tick: an exception
+    # that reaches Blender unregisters the timer, and the addon would stay
+    # connected but deaf without telling anyone.
+    try:
+        _flush_step()
+    except Exception as error:
+        _log("transform flush failed: {}: {}".format(type(error).__name__, error))
+    return TRANSFORM_INTERVAL
+
+
+def _flush_step():
     if _PENDING:
         # drain BEFORE sending: send() is synchronous and can take a few
         # milliseconds, and whatever arrives meanwhile must end up in the
@@ -124,7 +135,6 @@ def _flush_transforms():
         _PENDING.clear()
         for obj_id, matrix in batch:
             sync.send_transform(obj_id, matrix)
-    return TRANSFORM_INTERVAL
 
 
 def _log(message):
@@ -276,6 +286,15 @@ def _check_connection_state():
 
 
 def _drain_incoming():
+    # same safety net as _flush_transforms
+    try:
+        return _drain_step()
+    except Exception as error:
+        _log("drain failed: {}: {}".format(type(error).__name__, error))
+        return DRAIN_INTERVAL
+
+
+def _drain_step():
     # runs on the main thread: bpy is usable here
     global _DRAIN_PAUSED_AT
     budget = receive.DRAIN_BUDGET_SECONDS
