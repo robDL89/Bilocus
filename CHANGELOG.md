@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 - 2026-11-18
 
 - New: **Blender 5.3** support, tested in CI and in Blender 5.3 with Revit.
 - New: **host collection in the pull.** In a model with linked models, the
@@ -17,6 +17,9 @@
   and the Revit Status note now shows in the Blender panel.
 - Fixed: a `BL_` parameter with a formula of its own is no longer removed.
 - Fixed: a Blender that stops reading can no longer freeze Revit on a send.
+- Changed: the bake checkboxes name the bake they apply to, *DirectShape:
+  smooth mesh* and *Family: accept open solid*. Family Bake always makes a
+  solid, so a family shows every face edge.
 
 ## 0.3.0 - 2026-10-29
 
