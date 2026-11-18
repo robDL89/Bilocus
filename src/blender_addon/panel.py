@@ -416,9 +416,9 @@ class BILOCUS_PT_panel(bpy.types.Panel):
             # right below the category: it is the other half of "what this
             # object becomes", and "Apply to Selected" copies them together
             if hasattr(target, bake.ACCEPT_OPEN_PROPERTY):
-                box.prop(target, bake.ACCEPT_OPEN_PROPERTY, text="Accept open solid")
+                box.prop(target, bake.ACCEPT_OPEN_PROPERTY, text="Family: accept open solid")
             if hasattr(target, bake.SMOOTH_MESH_PROPERTY):
-                box.prop(target, bake.SMOOTH_MESH_PROPERTY, text="Smooth mesh (no volume)")
+                box.prop(target, bake.SMOOTH_MESH_PROPERTY, text="DirectShape: smooth mesh (no volume)")
             _draw_family_params(box, target)
 
         row = box.row()
