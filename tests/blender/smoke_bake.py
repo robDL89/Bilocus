@@ -677,8 +677,8 @@ def test_end_to_end(scene, collection, sample, addon_module):
           "panel: one picker per overridable family parameter ({})".format(len(pickers)))
     order = [line[2] for line in section
              if line[0] == depth and line[1] in ("prop", "operator")]
-    expected_order = ["Category = OST_Walls", "Accept open solid = False",
-                      "Smooth mesh (no volume) = False",
+    expected_order = ["Category = OST_Walls", "Family: accept open solid = False",
+                      "DirectShape: smooth mesh (no volume) = False",
                       "[Apply to Selected] bilocus.apply_bake_category",
                       "[Bake DirectShape] bilocus.bake_directshape [EXPORT]",
                       "[Bake Family] bilocus.bake_family [EXPORT]",
@@ -824,7 +824,7 @@ def test_family(server, collection, sample, cube, addon_module):
     select_only([sample, cube, opened], active=opened)
     lines = draw_panel()
     section = bake_section(lines)
-    check(any(line[1] == "prop" and line[2] == "Accept open solid = True"
+    check(any(line[1] == "prop" and line[2] == "Family: accept open solid = True"
               for line in section),
           "panel: active object's checkbox on")
 

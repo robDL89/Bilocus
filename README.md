@@ -76,7 +76,8 @@ Reference measurement: 385 objects and 1,042,674 triangles synced in 2.5 s on an
 ## Smooth meshes or true solids
 
 A DirectShape bake can bring a shape into Revit in two ways, chosen per
-object with the **Smooth mesh (no volume)** checkbox:
+object with the **DirectShape: smooth mesh (no volume)** checkbox (Family
+Bake ignores it: a family needs a solid, so every face edge shows):
 
 | | True solid (default) | Smooth mesh |
 |---|---|---|
