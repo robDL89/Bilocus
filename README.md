@@ -13,6 +13,10 @@
   <img src="docs/media/hero-sync.gif" alt="Geometry nodes edited in Blender, updated live in Revit">
 </p>
 
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=EhBcEda76Y4"><b>Watch the trailer on YouTube</b></a>
+</p>
+
 Live bridge between Blender and Autodesk(R) Revit(R) software: the geometry
 modeled in Blender is visible inside Revit in real time, without becoming
 an element of the document.
